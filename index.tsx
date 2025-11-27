@@ -31,11 +31,12 @@ import {
   PieChart,
   Wallet,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Users
 } from 'lucide-react';
 
 // Types
-type ViewState = 'dashboard' | 'units' | 'finance' | 'maintenance' | 'settings' | 'suppliers' | 'documents' | 'infractions';
+type ViewState = 'dashboard' | 'units' | 'residents' | 'finance' | 'maintenance' | 'settings' | 'suppliers' | 'documents' | 'infractions';
 
 // Mock Data Initial State
 const MOCK_UNITS = [
@@ -45,6 +46,14 @@ const MOCK_UNITS = [
   { id: 4, unit: '104', block: 'B', owner: 'Pedro Santos', status: 'occupied', type: 'owner' },
   { id: 5, unit: '105', block: 'C', owner: 'Ana Pereira', status: 'occupied', type: 'owner' },
   { id: 6, unit: '106', block: 'C', owner: 'Carlos Lima', status: 'debt', type: 'tenant' },
+];
+
+const MOCK_RESIDENTS = [
+  { id: 1, name: 'João Silva', cpf: '123.456.789-00', rg: '12.345.678-9', email: 'joao@email.com', phone: '(11) 99999-1111', occupants: 3 },
+  { id: 2, name: 'Maria Souza', cpf: '234.567.890-11', rg: '23.456.789-0', email: 'maria@email.com', phone: '(11) 99999-2222', occupants: 2 },
+  { id: 3, name: 'Pedro Santos', cpf: '345.678.901-22', rg: '34.567.890-1', email: 'pedro@email.com', phone: '(11) 99999-3333', occupants: 4 },
+  { id: 4, name: 'Ana Pereira', cpf: '456.789.012-33', rg: '45.678.901-2', email: 'ana@email.com', phone: '(11) 99999-4444', occupants: 1 },
+  { id: 5, name: 'Carlos Lima', cpf: '567.890.123-44', rg: '56.789.012-3', email: 'carlos@email.com', phone: '(11) 99999-5555', occupants: 2 },
 ];
 
 const MOCK_FINANCE = [
@@ -238,15 +247,17 @@ const DashboardView = ({
 
   const maintenanceStats = useMemo(() => {
       const total = data.maintenance.length;
-      const pending = data.maintenance.filter(m => m.status === 'pending' || m.status === 'late').length;
+      // Include 'scheduled' and 'late' in the active count
+      const pending = data.maintenance.filter(m => m.status === 'pending' || m.status === 'late' || m.status === 'scheduled').length;
       return { total, pending };
   }, [data.maintenance]);
 
   const occupancyStats = useMemo(() => {
     const total = data.units.length;
-    const occupied = data.units.filter(u => u.status !== 'vacant').length;
+    // Check type 'vacant' instead of financial status
+    const occupied = data.units.filter(u => u.type !== 'vacant').length;
     const rate = total > 0 ? ((occupied/total)*100).toFixed(0) : "0";
-    return { rate };
+    return { count: occupied, rate };
   }, [data.units]);
 
   return (
@@ -276,14 +287,14 @@ const DashboardView = ({
         <StatCard 
             title="Manutenção" 
             value={maintenanceStats.pending.toString()} 
-            trend="Ordens pendentes" 
+            trend="Pendentes e Agendadas" 
             icon={Wrench} 
             trendType={maintenanceStats.pending > 2 ? "down" : "up"} 
         />
         <StatCard 
             title="Ocupação" 
-            value={`${occupancyStats.rate}%`} 
-            trend="Unidades ocupadas" 
+            value={`${occupancyStats.count} Unidades`} 
+            trend={`${occupancyStats.rate}% do total`} 
             icon={Building2} 
             trendType="up" 
         />
@@ -396,10 +407,12 @@ const DashboardView = ({
 
 const UnitsView = ({ 
   data, 
-  onUpdate 
+  onUpdate,
+  residents
 }: { 
   data: typeof MOCK_UNITS, 
-  onUpdate: (data: typeof MOCK_UNITS) => void 
+  onUpdate: (data: typeof MOCK_UNITS) => void,
+  residents: typeof MOCK_RESIDENTS
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -489,14 +502,17 @@ const UnitsView = ({
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Responsável</label>
-              <input 
-                type="text" 
-                value={formData.owner} 
+              <label className="block text-sm font-medium text-slate-700 mb-1">Responsável (Morador Cadastrado)</label>
+              <select
+                value={formData.owner}
                 onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                placeholder="Nome completo"
-              />
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+              >
+                <option value="">Selecione o morador...</option>
+                {residents.map(r => (
+                  <option key={r.id} value={r.name}>{r.name} (CPF: {r.cpf})</option>
+                ))}
+              </select>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -523,6 +539,160 @@ const UnitsView = ({
                 </select>
               </div>
             </div>
+            <div className="pt-4 flex justify-end gap-3">
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium">Cancelar</button>
+              <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+const ResidentsView = ({
+  data,
+  onUpdate
+}: {
+  data: typeof MOCK_RESIDENTS,
+  onUpdate: (data: typeof MOCK_RESIDENTS) => void
+}) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [formData, setFormData] = useState({ name: '', cpf: '', rg: '', email: '', phone: '', occupants: 1 });
+
+  const handleOpenModal = (item?: any) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData({ 
+        name: item.name, 
+        cpf: item.cpf, 
+        rg: item.rg, 
+        email: item.email, 
+        phone: item.phone, 
+        occupants: item.occupants 
+      });
+    } else {
+      setEditingItem(null);
+      setFormData({ name: '', cpf: '', rg: '', email: '', phone: '', occupants: 1 });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (editingItem) {
+      onUpdate(data.map(r => r.id === editingItem.id ? { ...r, ...formData } : r));
+    } else {
+      onUpdate([...data, { id: Date.now(), ...formData }]);
+    }
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Moradores</h2>
+        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm">
+          <Plus size={18} /> Novo Morador
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
+            <tr>
+              <th className="p-4 pl-6 font-medium">Nome</th>
+              <th className="p-4 font-medium">CPF</th>
+              <th className="p-4 font-medium">Contato</th>
+              <th className="p-4 font-medium">Ocupantes</th>
+              <th className="p-4 font-medium text-right pr-6">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {data.map((r) => (
+              <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                <td className="p-4 pl-6 font-medium text-slate-800">
+                  <div>{r.name}</div>
+                  <div className="text-xs text-slate-500">RG: {r.rg}</div>
+                </td>
+                <td className="p-4 text-slate-600">{r.cpf}</td>
+                <td className="p-4 text-slate-600">
+                  <div>{r.phone}</div>
+                  <div className="text-xs text-slate-500">{r.email}</div>
+                </td>
+                <td className="p-4 text-slate-600">{r.occupants}</td>
+                <td className="p-4 text-right pr-6">
+                  <button onClick={() => handleOpenModal(r)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <Modal title={editingItem ? "Editar Morador" : "Novo Morador"} onClose={() => setIsModalOpen(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
+              <input 
+                type="text" 
+                value={formData.name} 
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">CPF</label>
+                <input 
+                  type="text" 
+                  value={formData.cpf} 
+                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+                  placeholder="000.000.000-00"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">RG</label>
+                <input 
+                  type="text" 
+                  value={formData.rg} 
+                  onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+                <input 
+                  type="email" 
+                  value={formData.email} 
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
+                <input 
+                  type="text" 
+                  value={formData.phone} 
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Número de Ocupantes no Imóvel</label>
+              <input 
+                type="number" 
+                value={formData.occupants} 
+                onChange={(e) => setFormData({ ...formData, occupants: parseInt(e.target.value) || 0 })}
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
+              />
+            </div>
+            
             <div className="pt-4 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium">Cancelar</button>
               <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
@@ -1108,7 +1278,7 @@ const SuppliersView = ({ data, onUpdate }: { data: typeof MOCK_SUPPLIERS, onUpda
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Fornecedores</h2>
         <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-          <Plus size={18} /> Novo Fornecedor
+          <Plus size={18} /> Nova Fornecedor
         </button>
       </div>
 
@@ -1261,7 +1431,12 @@ const SuppliersView = ({ data, onUpdate }: { data: typeof MOCK_SUPPLIERS, onUpda
                 <p className="text-sm text-slate-600 mt-2"><span className="font-semibold">Contato:</span> {contractModal.contact}</p>
               </div>
               <div className="flex justify-end">
-                <button className="text-indigo-600 hover:text-indigo-800 text-sm font-medium">Baixar PDF do Contrato</button>
+                <button 
+                    onClick={() => alert(`Simulando download do contrato: ${contractModal.name}.pdf`)} 
+                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
+                >
+                    Baixar PDF do Contrato
+                </button>
               </div>
            </div>
         </Modal>
@@ -1468,6 +1643,15 @@ const InfractionsView = ({
     return count + 1; // Current one is next
   };
 
+  const handleStatusChange = (id: number, newStatus: string) => {
+    const updatedData = data.map(i => i.id === id ? { ...i, status: newStatus } : i);
+    onUpdate(updatedData);
+    // Update the selected item as well so the modal updates immediately
+    if (selectedInfraction && selectedInfraction.id === id) {
+        setSelectedInfraction({ ...selectedInfraction, status: newStatus });
+    }
+  };
+
   const handleUnitOrTypeChange = (unit: string, ruleId: string) => {
     const rule = regimentRules.find(r => r.id.toString() === ruleId);
     const type = rule ? rule.description : '';
@@ -1653,11 +1837,35 @@ const InfractionsView = ({
              </div>
              <div>
                 <h4 className="font-semibold text-slate-800 mb-2">Status do Processo</h4>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mb-4">
                    <StatusBadge status={selectedInfraction.status} />
                    <span className="text-sm text-slate-500">
                       {selectedInfraction.status === 'awaiting_defense' ? '- Aguardando defesa do morador (Prazo: 5 dias)' : ''}
                    </span>
+                </div>
+                
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Alterar Status</p>
+                    <div className="flex flex-wrap gap-2">
+                        <button 
+                            onClick={() => handleStatusChange(selectedInfraction.id, 'awaiting_defense')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${selectedInfraction.status === 'awaiting_defense' ? 'bg-amber-100 text-amber-700 border-amber-200 ring-1 ring-amber-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            Aguardando Defesa
+                        </button>
+                        <button 
+                            onClick={() => handleStatusChange(selectedInfraction.id, 'fined')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${selectedInfraction.status === 'fined' ? 'bg-red-100 text-red-700 border-red-200 ring-1 ring-red-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            Multado
+                        </button>
+                        <button 
+                            onClick={() => handleStatusChange(selectedInfraction.id, 'appealing')}
+                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${selectedInfraction.status === 'appealing' ? 'bg-purple-100 text-purple-700 border-purple-200 ring-1 ring-purple-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            Em Recurso
+                        </button>
+                    </div>
                 </div>
              </div>
           </div>
@@ -2077,6 +2285,7 @@ const App = () => {
   const [usersData, setUsersData] = useState(MOCK_SYSTEM_USERS);
   const [regimentData, setRegimentData] = useState(MOCK_REGIMENT_RULES);
   const [tenantsData, setTenantsData] = useState(TENANTS);
+  const [residentsData, setResidentsData] = useState(MOCK_RESIDENTS);
 
   const renderView = () => {
     switch(currentView) {
@@ -2089,6 +2298,12 @@ const App = () => {
         return <UnitsView 
                   data={unitsData} 
                   onUpdate={setUnitsData} 
+                  residents={residentsData}
+               />;
+      case 'residents':
+        return <ResidentsView
+                  data={residentsData}
+                  onUpdate={setResidentsData}
                />;
       case 'finance': 
         return <FinanceView 
@@ -2172,6 +2387,7 @@ const App = () => {
             <NavItem view="dashboard" icon={PieChart} label="Visão Geral" />
             <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Principal</div>
             <NavItem view="units" icon={User} label="Unidades" />
+            <NavItem view="residents" icon={Users} label="Moradores" />
             <NavItem view="maintenance" icon={Wrench} label="Manutenção" />
             <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrativo</div>
             <NavItem view="finance" icon={DollarSign} label="Financeiro" />
