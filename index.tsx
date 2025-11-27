@@ -1,988 +1,890 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
-  DollarSign, 
-  AlertTriangle, 
+  LayoutDashboard, 
+  Users, 
   Wrench, 
-  Building2, 
-  ArrowUpCircle, 
-  ArrowDownCircle, 
-  Calendar, 
-  Truck,
+  DollarSign, 
+  Truck, 
+  AlertTriangle, 
+  FileText, 
+  Settings, 
+  Bell, 
+  Menu, 
+  Search, 
+  MoreVertical, 
+  LogOut, 
+  UploadCloud, 
+  Eye, 
+  Trash2, 
   X,
-  Search,
-  User,
-  Settings,
-  Bell,
-  FileText,
-  UploadCloud,
-  File,
-  Eye,
-  Trash2,
-  CheckCircle,
-  XCircle,
-  Menu,
-  ChevronDown,
-  MoreVertical,
   Plus,
   Filter,
   Download,
-  AlertCircle,
-  PieChart,
-  Wallet,
-  TrendingUp,
-  TrendingDown,
-  Users
+  CheckCircle,
+  Clock,
+  Home,
+  Database,
+  Calendar,
+  ChevronDown,
+  Edit,
+  User,
+  Shield
 } from 'lucide-react';
 
-// Types
-type ViewState = 'dashboard' | 'units' | 'residents' | 'finance' | 'maintenance' | 'settings' | 'suppliers' | 'documents' | 'infractions';
+// --- MOCK DATA ---
 
-// LocalStorage Keys
-const STORAGE_KEYS = {
-  units: 'gestorcondo_units',
-  residents: 'gestorcondo_residents',
-  finance: 'gestorcondo_finance',
-  maintenance: 'gestorcondo_maintenance',
-  suppliers: 'gestorcondo_suppliers',
-  documents: 'gestorcondo_documents',
-  infractions: 'gestorcondo_infractions',
-  users: 'gestorcondo_users',
-  regiment: 'gestorcondo_regiment',
-  tenants: 'gestorcondo_tenants',
-  notifications: 'gestorcondo_notifications',
-  currentTenantId: 'gestorcondo_currentTenantId',
-};
+const MOCK_CONDOS = [
+  { id: 1, name: 'Residencial Horizonte', cnpj: '12.345.678/0001-90', address: 'Rua das Flores, 123', syndic: 'Carlos Silva' },
+  { id: 2, name: 'Edifício Solar', cnpj: '98.765.432/0001-12', address: 'Av. do Sol, 456', syndic: 'Ana Souza' }
+];
 
-// LocalStorage Utility Functions
-const saveToStorage = <T,>(key: string, data: T): void => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (error) {
-    console.error('Error saving to localStorage:', error);
-  }
-};
-
-const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
-  try {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      return JSON.parse(stored) as T;
-    }
-  } catch (error) {
-    console.error('Error loading from localStorage:', error);
-  }
-  return defaultValue;
-};
-
-// Mock Data Initial State (used as defaults when no saved data exists)
 const MOCK_UNITS = [
-  { id: 1, unit: '101', block: 'A', owner: 'João Silva', status: 'occupied', type: 'owner' },
-  { id: 2, unit: '102', block: 'A', owner: 'Maria Souza', status: 'debt', type: 'tenant' },
-  { id: 3, unit: '103', block: 'B', owner: '', status: 'debt', type: 'vacant' },
-  { id: 4, unit: '104', block: 'B', owner: 'Pedro Santos', status: 'occupied', type: 'owner' },
-  { id: 5, unit: '105', block: 'C', owner: 'Ana Pereira', status: 'occupied', type: 'owner' },
-  { id: 6, unit: '106', block: 'C', owner: 'Carlos Lima', status: 'debt', type: 'tenant' },
+  { id: 1, condoId: 1, number: '101', block: 'A', responsible: 'João Silva', type: 'owner', status: 'paid' },
+  { id: 2, condoId: 1, number: '102', block: 'A', responsible: 'Maria Souza', type: 'tenant', status: 'debt' },
+  { id: 3, condoId: 1, number: '103', block: 'B', responsible: '-', type: 'vacant', status: 'debt' },
+  { id: 4, condoId: 1, number: '104', block: 'B', responsible: 'Pedro Santos', type: 'owner', status: 'paid' },
+  { id: 5, condoId: 1, number: '105', block: 'C', responsible: 'Ana Pereira', type: 'owner', status: 'paid' },
+  { id: 6, condoId: 1, number: '106', block: 'C', responsible: 'Carlos Lima', type: 'tenant', status: 'debt' },
+  // Condo 2 data
+  { id: 7, condoId: 2, number: '10', block: 'Unique', responsible: 'Fernanda Lima', type: 'owner', status: 'paid' }
 ];
 
 const MOCK_RESIDENTS = [
-  { id: 1, name: 'João Silva', cpf: '123.456.789-00', rg: '12.345.678-9', email: 'joao@email.com', phone: '(11) 99999-1111', occupants: 3 },
-  { id: 2, name: 'Maria Souza', cpf: '234.567.890-11', rg: '23.456.789-0', email: 'maria@email.com', phone: '(11) 99999-2222', occupants: 2 },
-  { id: 3, name: 'Pedro Santos', cpf: '345.678.901-22', rg: '34.567.890-1', email: 'pedro@email.com', phone: '(11) 99999-3333', occupants: 4 },
-  { id: 4, name: 'Ana Pereira', cpf: '456.789.012-33', rg: '45.678.901-2', email: 'ana@email.com', phone: '(11) 99999-4444', occupants: 1 },
-  { id: 5, name: 'Carlos Lima', cpf: '567.890.123-44', rg: '56.789.012-3', email: 'carlos@email.com', phone: '(11) 99999-5555', occupants: 2 },
-];
-
-const MOCK_FINANCE = [
-  { id: 1, type: 'income', status: 'paid', amount: 2500, desc: 'Aluguel 101', category: 'Aluguel', date: '2023-11-05', supplier: '' },
-  { id: 2, type: 'expense', status: 'paid', amount: 350, desc: 'Material Limpeza', category: 'Serviços', date: '2023-11-10', supplier: 'PoolService' },
-  { id: 3, type: 'expense', status: 'pending', amount: 1200, desc: 'Manutenção Elevador', category: 'Manutenção', date: '2023-11-25', supplier: 'TechElevators' },
-  { id: 4, type: 'income', status: 'paid', amount: 2500, desc: 'Aluguel 104', category: 'Aluguel', date: '2023-11-05', supplier: '' },
-  { id: 5, type: 'income', status: 'pending', amount: 2500, desc: 'Aluguel 105', category: 'Aluguel', date: '2023-12-05', supplier: '' },
-  { id: 6, type: 'expense', status: 'overdue', amount: 500, desc: 'Conta de Luz', category: 'Utilidades', date: '2023-11-15', supplier: 'Enel' },
+  { id: 1, condoId: 1, name: 'João Silva', email: 'joao@email.com', phone: '(11) 9999-0001', unit: '101 - A', occupants: 3 },
+  { id: 2, condoId: 1, name: 'Maria Souza', email: 'maria@email.com', phone: '(11) 9999-0002', unit: '102 - A', occupants: 2 },
+  { id: 3, condoId: 1, name: 'Pedro Santos', email: 'pedro@email.com', phone: '(11) 9999-0003', unit: '104 - B', occupants: 4 },
+  { id: 4, condoId: 1, name: 'Ana Pereira', email: 'ana@email.com', phone: '(11) 9999-0004', unit: '105 - C', occupants: 1 },
+  { id: 5, condoId: 1, name: 'Carlos Lima', email: 'carlos@email.com', phone: '(11) 9999-0005', unit: '106 - C', occupants: 2 },
 ];
 
 const MOCK_MAINTENANCE = [
-  { id: 1, item: 'Elevador Bloco A', date: '2023-11-25', status: 'pending', type: 'Preventiva', priority: 'high', assignee: 'TechElevators', validUntil: '2024-11-25' },
-  { id: 2, item: 'Lâmpadas Hall', date: '2023-11-20', status: 'completed', type: 'Corretiva', priority: 'low', assignee: 'Zelador', validUntil: '' },
-  { id: 3, item: 'Bomba Piscina', date: '2023-11-28', status: 'scheduled', type: 'Preventiva', priority: 'medium', assignee: 'PoolService', validUntil: '2024-05-28' },
-  { id: 4, item: 'Portão Garagem', date: '2023-11-15', status: 'cancelled', type: 'Corretiva', priority: 'high', assignee: 'Serralheria', validUntil: '' },
-  { id: 5, item: 'Jardinagem', date: '2023-11-22', status: 'pending', type: 'Rotina', priority: 'low', assignee: 'Jardinagem Verde', validUntil: '' },
+  { id: 1, condoId: 1, item: 'Elevador Bloco A', date: '2023-11-24', validUntil: '2024-11-24', type: 'preventive', status: 'scheduled', supplier: 'TechElevators' },
+  { id: 2, condoId: 1, item: 'Lâmpadas Hall', date: '2023-11-19', validUntil: '', type: 'corrective', status: 'completed', supplier: 'Zelador' },
+  { id: 3, condoId: 1, item: 'Bomba Piscina', date: '2023-11-27', validUntil: '2024-05-27', type: 'preventive', status: 'scheduled', supplier: 'PoolService' },
+  { id: 4, condoId: 1, item: 'Portão Garagem', date: '2023-11-14', validUntil: '', type: 'corrective', status: 'cancelled', supplier: 'Serralheria' },
+  { id: 5, condoId: 1, item: 'Jardinagem', date: '2023-11-21', validUntil: '', type: 'routine', status: 'pending', supplier: 'Jardinagem Verde' }
 ];
 
 const MOCK_SUPPLIERS = [
-  { id: 1, name: 'TechElevators', category: 'Manutenção', contact: '(11) 9999-8888', contractStart: '2023-01-01', contractEnd: '2024-01-01', status: 'active', service: 'Elevadores' },
-  { id: 2, name: 'PoolService', category: 'Limpeza', contact: '(11) 9777-6666', contractStart: '2023-03-15', contractEnd: '2024-03-15', status: 'active', service: 'Piscinas' },
-  { id: 3, name: 'Segurança Total', category: 'Segurança', contact: '(11) 9555-4444', contractStart: '2022-06-01', contractEnd: '2023-06-01', status: 'inactive', service: 'Portaria' },
+  { id: 1, condoId: 1, name: 'ABC Ltda', category: 'Manutenção', contact: '(11) 9999-8888', contractStart: '2023-01-01', contractEnd: '2024-01-01', status: 'active' },
+  { id: 2, condoId: 1, name: 'Imobiliária Centro', category: 'Administrativo', contact: '(11) 7777-6666', contractStart: '2023-05-01', contractEnd: '2025-05-01', status: 'active' },
+  { id: 3, condoId: 1, name: 'Distribuidora XYZ', category: 'Insumos', contact: '(11) 5555-4444', contractStart: '2022-01-01', contractEnd: '2022-12-31', status: 'inactive' },
+  { id: 4, condoId: 1, name: 'TechElevators', category: 'Manutenção', contact: '(11) 3333-2222', contractStart: '2023-01-01', contractEnd: '2024-01-01', status: 'active' },
+  { id: 5, condoId: 1, name: 'Segurança Total', category: 'Segurança', contact: '(11) 2222-1111', contractStart: '2023-06-01', contractEnd: '2024-06-01', status: 'active' },
+];
+
+const MOCK_FINANCE = [
+  { id: 1, condoId: 1, description: 'Aluguel 101', category: 'Aluguel', date: '2023-11-04', type: 'income', amount: 2500.00, status: 'paid', dueDate: '2023-11-05' },
+  { id: 2, condoId: 1, description: 'Material Limpeza', category: 'Serviços', date: '2023-11-10', type: 'expense', amount: 350.00, status: 'pending', dueDate: '2023-11-15' },
+  { id: 3, condoId: 1, description: 'Manutenção Elevador', category: 'Manutenção', date: '2023-11-12', type: 'expense', amount: 1200.00, status: 'pending', dueDate: '2023-11-20' },
+  { id: 4, condoId: 1, description: 'Aluguel 104', category: 'Aluguel', date: '2023-11-05', type: 'income', amount: 2500.00, status: 'paid', dueDate: '2023-11-05' },
+  { id: 5, condoId: 1, description: 'Aluguel 105', category: 'Aluguel', date: '2023-12-04', type: 'income', amount: 2500.00, status: 'paid', dueDate: '2023-12-05' },
+  { id: 6, condoId: 1, description: 'Conta de Luz', category: 'Utilidades', date: '2023-11-14', type: 'expense', amount: 500.00, status: 'pending', dueDate: '2023-11-25' },
 ];
 
 const MOCK_INFRACTIONS = [
-  { id: 1, unit: '102', type: 'Barulho Excessivo', date: '2023-11-20', amount: 250.00, status: 'awaiting_defense', recurrence: 1 },
-  { id: 2, unit: '106', type: 'Estacionamento Irregular', date: '2023-11-18', amount: 150.00, status: 'fined', recurrence: 2 },
-  { id: 3, unit: '101', type: 'Mudança fora de horário', date: '2023-11-10', amount: 500.00, status: 'appealing', recurrence: 1 },
-];
-
-const MOCK_REGIMENT_RULES = [
-  { id: 1, article: 'Art. 15', description: 'Barulho após as 22h', severity: 'Média', defaultAmount: 250.00 },
-  { id: 2, article: 'Art. 22', description: 'Estacionamento em vaga alheia', severity: 'Leve', defaultAmount: 150.00 },
-  { id: 3, article: 'Art. 8', description: 'Obras sem autorização', severity: 'Grave', defaultAmount: 1000.00 },
-];
-
-const MOCK_NOTIFICATIONS = [
-  { id: 1, title: 'Nova Infração', message: 'Unidade 102 registrou defesa.', time: '2h atrás', read: false },
-  { id: 2, title: 'Manutenção', message: 'Elevador Bloco A vence em 3 dias.', time: '5h atrás', read: false },
-  { id: 3, title: 'Pagamento', message: 'Fatura Fornecedor TechElevators paga.', time: '1d atrás', read: true },
-];
-
-const MOCK_SYSTEM_USERS = [
-  { id: 1, name: 'Carlos Síndico', email: 'sindico@condo.com', role: 'Síndico', status: 'active' },
-  { id: 2, name: 'Ana Admin', email: 'ana@admin.com', role: 'Administradora', status: 'active' },
-  { id: 3, name: 'Portaria', email: 'portaria@condo.com', role: 'Porteiro', status: 'inactive' },
+  { id: 1, condoId: 1, unit: '102', type: 'Barulho Excessivo', date: '2023-11-19', fine: 250.00, status: 'defense_pending', recurrence: 1 },
+  { id: 2, condoId: 1, unit: '106', type: 'Estacionamento Irregular', date: '2023-11-17', fine: 150.00, status: 'fined', recurrence: 2 },
+  { id: 3, condoId: 1, unit: '101', type: 'Mudança fora de horário', date: '2023-11-09', fine: 500.00, status: 'appeal', recurrence: 1 },
 ];
 
 const MOCK_DOCUMENTS = [
-  { id: 1, title: 'AVCB - Auto de Vistoria', category: 'Legal', date: '2023-05-10', expiry: '2023-11-01', status: 'expired', fileData: null, fileType: null }, // Expired for testing
-  { id: 2, title: 'Apólice de Seguro Predial', category: 'Seguros', date: '2023-01-15', expiry: '2024-01-15', status: 'valid', fileData: null, fileType: null },
-  { id: 3, title: 'Laudo SPDA (Para-raios)', category: 'Manutenção', date: '2022-10-20', expiry: '2023-12-10', status: 'expiring_soon', fileData: null, fileType: null }, // Soon
-  { id: 4, title: 'Planta Hidráulica', category: 'Plantas', date: '2010-01-01', expiry: '', status: 'permanent', fileData: null, fileType: null },
+  { 
+    id: 1, 
+    condoId: 1,
+    title: 'AVCB - Auto de Vistoria', 
+    category: 'Legal', 
+    issueDate: '2023-05-09', 
+    validUntil: '2023-10-30', // Vencido
+    permanent: false,
+    fileData: null as string | null,
+    fileName: ''
+  },
+  { 
+    id: 2, 
+    condoId: 1,
+    title: 'Apólice de Seguro Predial', 
+    category: 'Seguros', 
+    issueDate: '2023-01-14', 
+    validUntil: '2024-01-14', // Vigente
+    permanent: false,
+    fileData: null as string | null,
+    fileName: ''
+  },
+  { 
+    id: 3, 
+    condoId: 1,
+    title: 'Laudo SPDA (Para-raios)', 
+    category: 'Manutenção', 
+    issueDate: '2022-10-19', 
+    validUntil: '2023-12-09', // A vencer
+    permanent: false,
+    fileData: null as string | null,
+    fileName: ''
+  },
+  {
+    id: 4,
+    condoId: 1,
+    title: 'Planta Hidráulica',
+    category: 'Plantas',
+    issueDate: '2009-12-30',
+    validUntil: '',
+    permanent: true,
+    fileData: null,
+    fileName: ''
+  }
 ];
 
-const TENANTS = [
-  { id: 1, name: 'Residencial Horizonte', cnpj: '12.345.678/0001-90' },
-  { id: 2, name: 'Edifício Bela Vista', cnpj: '98.765.432/0001-10' },
+const MOCK_NOTIFICATIONS = [
+  { id: 1, title: 'Manutenção Elevador', message: 'Manutenção programada para amanhã às 14h.', read: false, date: '2023-11-23' },
+  { id: 2, title: 'Nova Infração', message: 'Unidade 102 registrou defesa.', read: false, date: '2023-11-20' },
+  { id: 3, title: 'Boleto Vencendo', message: 'Conta de Luz vence hoje.', read: true, date: '2023-11-25' },
 ];
 
-// Components
-const Card = ({ title, children, className = '', action = null }: { title: string, children?: React.ReactNode, className?: string, action?: React.ReactNode }) => (
-  <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200 ${className}`}>
-    <div className="flex justify-between items-center mb-6">
-      <h3 className="font-semibold text-slate-800 text-lg">{title}</h3>
-      {action}
-    </div>
-    {children}
-  </div>
-);
+const MOCK_USERS = [
+  { id: 1, name: 'Carlos Síndico', email: 'carlos@horizonte.com', role: 'Síndico', status: 'active', permittedCondos: [1, 2] },
+  { id: 2, name: 'Ana Admin', email: 'ana@admin.com', role: 'Administradora', status: 'active', permittedCondos: [2] },
+  { id: 3, name: 'João Porteiro', email: 'joao@portaria.com', role: 'Portaria', status: 'inactive', permittedCondos: [1] },
+];
 
-const StatCard = ({ title, value, trend, icon: Icon, trendType }: { title: string, value: string, trend: string, icon: any, trendType: 'up' | 'down' | 'neutral' }) => (
-  <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow group">
-    <div className="flex justify-between items-start mb-4">
-      <div>
-        <p className="text-slate-500 text-sm font-medium">{title}</p>
-        <h3 className="text-2xl font-bold text-slate-800 mt-1">{value}</h3>
-      </div>
-      <div className="p-2 bg-slate-50 rounded-lg text-slate-600 group-hover:bg-slate-100 transition-colors">
-        <Icon size={20} />
-      </div>
-    </div>
-    <div className={`text-xs font-medium ${
-      trendType === 'up' ? 'text-emerald-600' : 
-      trendType === 'down' ? 'text-red-600' : 'text-slate-500'
-    } flex items-center gap-1`}>
-       {trend}
-    </div>
-  </div>
-);
+const MOCK_REGULATIONS = [
+  { id: 1, condoId: 1, article: 'Art. 32', description: 'Barulho Excessivo', severity: 'Média', defaultFine: 250.00 },
+  { id: 2, condoId: 1, article: 'Art. 15', description: 'Estacionamento Irregular', severity: 'Leve', defaultFine: 150.00 },
+  { id: 3, condoId: 1, article: 'Art. 40', description: 'Mudança fora de horário', severity: 'Grave', defaultFine: 500.00 },
+];
+
+// --- COMPONENTS ---
 
 const StatusBadge = ({ status }: { status: string }) => {
   const styles: Record<string, string> = {
-    paid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    pending: 'bg-amber-100 text-amber-700 border-amber-200',
-    overdue: 'bg-red-100 text-red-700 border-red-200',
-    late: 'bg-red-100 text-red-700 border-red-200',
-    debt: 'bg-red-100 text-red-700 border-red-200',
-    occupied: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    vacant: 'bg-slate-100 text-slate-700 border-slate-200',
-    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    scheduled: 'bg-blue-100 text-blue-700 border-blue-200',
-    cancelled: 'bg-slate-100 text-slate-500 border-slate-200',
-    high: 'bg-red-50 text-red-700 border-red-100',
-    medium: 'bg-amber-50 text-amber-700 border-amber-100',
-    low: 'bg-blue-50 text-blue-700 border-blue-100',
-    active: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    inactive: 'bg-slate-100 text-slate-600 border-slate-200',
-    valid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    expired: 'bg-red-100 text-red-700 border-red-200',
-    expiring_soon: 'bg-amber-100 text-amber-700 border-amber-200',
-    permanent: 'bg-indigo-100 text-indigo-700 border-indigo-200',
-    awaiting_defense: 'bg-amber-100 text-amber-700 border-amber-200',
-    fined: 'bg-red-100 text-red-700 border-red-200',
-    appealing: 'bg-purple-100 text-purple-700 border-purple-200'
+    active: 'bg-emerald-100 text-emerald-700',
+    inactive: 'bg-slate-100 text-slate-700',
+    paid: 'bg-emerald-100 text-emerald-700',
+    pending: 'bg-amber-100 text-amber-700',
+    debt: 'bg-rose-100 text-rose-700',
+    overdue: 'bg-rose-100 text-rose-700',
+    scheduled: 'bg-blue-100 text-blue-700',
+    completed: 'bg-emerald-100 text-emerald-700',
+    cancelled: 'bg-slate-200 text-slate-600',
+    routine: 'bg-indigo-100 text-indigo-700',
+    registered: 'bg-blue-50 text-blue-700',
+    defense_pending: 'bg-amber-100 text-amber-700',
+    fined: 'bg-rose-100 text-rose-700',
+    appeal: 'bg-purple-100 text-purple-700',
+    archived: 'bg-slate-100 text-slate-600',
+    valid: 'bg-emerald-100 text-emerald-700',
+    expiring_soon: 'bg-amber-100 text-amber-700',
+    expired: 'bg-rose-100 text-rose-700',
+    permanent: 'bg-blue-100 text-blue-700'
   };
   
   const labels: Record<string, string> = {
-    paid: 'Pago', pending: 'Pendente', overdue: 'Vencido', late: 'Atrasado',
-    debt: 'Inadimplente', occupied: 'Adimplente', vacant: 'Vaga',
-    completed: 'Concluído', scheduled: 'Agendado', cancelled: 'Cancelada',
-    high: 'Alta', medium: 'Média', low: 'Baixa',
-    active: 'Ativo', inactive: 'Inativo',
-    valid: 'Vigente', expired: 'Vencido', expiring_soon: 'A Vencer', permanent: 'Permanente',
-    awaiting_defense: 'Aguardando Defesa', fined: 'Multado', appealing: 'Em Recurso'
+    active: 'Ativo',
+    inactive: 'Inativo',
+    paid: 'Adimplente',
+    pending: 'Pendente',
+    debt: 'Inadimplente',
+    overdue: 'Vencido',
+    scheduled: 'Agendado',
+    completed: 'Concluído',
+    cancelled: 'Cancelada',
+    routine: 'Rotina',
+    registered: 'Registrada',
+    defense_pending: 'Aguardando Defesa',
+    fined: 'Multado',
+    appeal: 'Em Recurso',
+    archived: 'Arquivada',
+    valid: 'Vigente',
+    expiring_soon: 'A Vencer',
+    expired: 'Vencido',
+    permanent: 'Permanente'
   };
 
-  const label = labels[status] || status.charAt(0).toUpperCase() + status.slice(1);
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${styles[status] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-      {label}
+    <span className={`px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.active}`}>
+      {labels[status] || status}
     </span>
   );
 };
 
-const Modal = ({ title, onClose, children }: { title: string, onClose: () => void, children?: React.ReactNode }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
-      <div className="flex items-center justify-between p-5 border-b border-slate-100">
-        <h3 className="font-semibold text-slate-800 text-lg">{title}</h3>
-        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-          <X size={20} className="text-slate-500" />
-        </button>
-      </div>
-      <div className="p-6 overflow-y-auto max-h-[80vh]">
-        {children}
-      </div>
-    </div>
+const Card = ({ title, children, className = "" }: { title?: string, children?: React.ReactNode, className?: string }) => (
+  <div className={`bg-white rounded-xl border border-slate-200 shadow-sm p-6 ${className}`}>
+    {title && <h3 className="text-slate-500 text-sm font-medium mb-4 uppercase tracking-wider">{title}</h3>}
+    {children}
   </div>
 );
 
-// --- VIEWS ---
+const StatCard = ({ title, value, subtext, icon: Icon, trend }: any) => (
+  <Card>
+    <div className="flex justify-between items-start">
+      <div>
+        <p className="text-slate-500 text-sm font-medium mb-1">{title}</p>
+        <h4 className="text-2xl font-bold text-slate-800">{value}</h4>
+        {subtext && <p className={`text-xs mt-2 ${trend === 'negative' ? 'text-rose-600' : trend === 'positive' ? 'text-emerald-600' : 'text-slate-400'}`}>{subtext}</p>}
+      </div>
+      <div className="p-3 bg-slate-50 rounded-lg text-slate-600">
+        <Icon size={20} />
+      </div>
+    </div>
+  </Card>
+);
 
-const DashboardView = ({ 
-  onNavigate, 
-  data 
-}: { 
-  onNavigate: (view: ViewState) => void,
-  data: {
-    finance: typeof MOCK_FINANCE,
-    units: typeof MOCK_UNITS,
-    maintenance: typeof MOCK_MAINTENANCE,
-    documents: typeof MOCK_DOCUMENTS
-  }
-}) => {
-  const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null);
-
-  const financialData = useMemo(() => {
-    const income = data.finance.filter(t => t.type === 'income' && t.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-    const expense = data.finance.filter(t => t.type === 'expense' && t.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-    const currentBalance = income - expense;
-
-    const pendingIncome = data.finance.filter(t => t.type === 'income' && (t.status === 'pending' || t.status === 'overdue')).reduce((acc, curr) => acc + curr.amount, 0);
-    const pendingExpense = data.finance.filter(t => t.type === 'expense' && (t.status === 'pending' || t.status === 'overdue')).reduce((acc, curr) => acc + curr.amount, 0);
-    
-    const projectedBalance = currentBalance + pendingIncome - pendingExpense;
-
-    return { 
-      balance: currentBalance, 
-      projected: projectedBalance,
-      pendingIncome,
-      pendingExpense 
-    };
-  }, [data.finance]);
-
-  const delinquencyStats = useMemo(() => {
-      const totalUnits = data.units.length;
-      const debtUnits = data.units.filter(u => u.status === 'debt').length;
-      const rate = totalUnits > 0 ? ((debtUnits / totalUnits) * 100).toFixed(1) : "0";
-      return { count: debtUnits, rate };
-  }, [data.units]);
-
-  const maintenanceStats = useMemo(() => {
-      const total = data.maintenance.length;
-      // Include 'scheduled' and 'late' in the active count
-      const pending = data.maintenance.filter(m => m.status === 'pending' || m.status === 'late' || m.status === 'scheduled').length;
-      return { total, pending };
-  }, [data.maintenance]);
-
-  const occupancyStats = useMemo(() => {
-    const total = data.units.length;
-    // Check type 'vacant' instead of financial status
-    const occupied = data.units.filter(u => u.type !== 'vacant').length;
-    const rate = total > 0 ? ((occupied/total)*100).toFixed(0) : "0";
-    return { count: occupied, rate };
-  }, [data.units]);
-
-  const documentStats = useMemo(() => {
-    const now = new Date();
-    const warningDate = new Date();
-    warningDate.setDate(now.getDate() + 30); // 30 days notice
-
-    const expired = data.documents.filter(d => {
-        if (!d.expiry) return false;
-        return new Date(d.expiry) < now;
-    }).length;
-
-    const expiringSoon = data.documents.filter(d => {
-        if (!d.expiry) return false;
-        const expDate = new Date(d.expiry);
-        return expDate >= now && expDate <= warningDate;
-    }).length;
-
-    return { expired, expiringSoon, totalCritical: expired + expiringSoon };
-  }, [data.documents]);
-
+const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean, onClose: () => void, title: string, children?: React.ReactNode }) => {
+  if (!isOpen) return null;
   return (
-    <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        <StatCard 
-            title="Saldo em Caixa" 
-            value={`R$ ${financialData.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
-            trend="Atualizado hoje" 
-            icon={DollarSign} 
-            trendType="neutral" 
-        />
-         <StatCard 
-            title="Saldo Projetado" 
-            value={`R$ ${financialData.projected.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} 
-            trend={`A Pagar: -${financialData.pendingExpense.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`}
-            icon={PieChart} 
-            trendType={financialData.projected >= financialData.balance ? "up" : "down"} 
-        />
-        <StatCard 
-            title="Inadimplência" 
-            value={`${delinquencyStats.count} Unidades`} 
-            trend={`${delinquencyStats.rate}% do total`} 
-            icon={AlertTriangle} 
-            trendType={delinquencyStats.count > 0 ? "down" : "up"} 
-        />
-        <StatCard 
-            title="Manutenção" 
-            value={maintenanceStats.pending.toString()} 
-            trend="Pendentes e Agendadas" 
-            icon={Wrench} 
-            trendType={maintenanceStats.pending > 2 ? "down" : "up"} 
-        />
-        <StatCard 
-            title="Documentos" 
-            value={`${documentStats.totalCritical}`} 
-            trend={documentStats.expired > 0 ? `${documentStats.expired} Vencidos!` : `${documentStats.expiringSoon} a vencer`} 
-            icon={FileText} 
-            trendType={documentStats.totalCritical > 0 ? "down" : "neutral"} 
-        />
-        <StatCard 
-            title="Ocupação" 
-            value={`${occupancyStats.count}`} 
-            trend={`${occupancyStats.rate}%`} 
-            icon={Building2} 
-            trendType="neutral" 
-        />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center p-4 border-b">
+          <h3 className="font-semibold text-lg text-slate-800">{title}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full transition-colors"><X size={20} className="text-slate-400" /></button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card title="Próximas Manutenções" className="lg:col-span-2">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-slate-500 font-medium border-b border-slate-100">
-                <tr>
-                  <th className="pb-3 pl-2 font-medium">Item</th>
-                  <th className="pb-3 font-medium">Data</th>
-                  <th className="pb-3 font-medium">Status</th>
-                  <th className="pb-3 font-medium text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.maintenance.slice(0, 5).map((m) => (
-                  <tr key={m.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 pl-2 font-medium text-slate-700">{m.item}</td>
-                    <td className="py-3 text-slate-500">{new Date(m.date).toLocaleDateString('pt-BR')}</td>
-                    <td className="py-3"><StatusBadge status={m.status} /></td>
-                    <td className="py-3 text-right">
-                      <button 
-                        onClick={() => setSelectedMaintenance(m)}
-                        className="text-indigo-600 hover:text-indigo-800 text-xs font-semibold px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors"
-                      >
-                        Detalhes
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-
-        <Card title="Fluxo Recente">
-           <div className="space-y-4">
-            {data.finance.slice(0, 4).map((f) => (
-              <div key={f.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-slate-100 hover:border-slate-200 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-full ${f.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                    {f.type === 'income' ? <ArrowUpCircle size={16} /> : <ArrowDownCircle size={16} />}
-                  </div>
-                  <div>
-                    <p className="font-medium text-slate-800 text-sm truncate max-w-[120px]">{f.desc}</p>
-                    <p className="text-xs text-slate-500">{f.category}</p>
-                  </div>
-                </div>
-                <span className={`font-bold text-sm ${f.type === 'income' ? 'text-emerald-600' : 'text-slate-700'}`}>
-                  {f.type === 'income' ? '+' : '-'} R$ {f.amount.toFixed(2)}
-                </span>
-              </div>
-            ))}
-            <button 
-              onClick={() => onNavigate('finance')}
-              className="w-full py-2.5 text-center text-sm text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 rounded-lg transition-colors font-medium border border-transparent hover:border-indigo-100 mt-2"
-            >
-              Ver Extrato Completo
-            </button>
-          </div>
-        </Card>
-      </div>
-
-      {selectedMaintenance && (
-        <Modal title="Detalhes da Manutenção" onClose={() => setSelectedMaintenance(null)}>
-          <div className="space-y-6">
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-100">
-               <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Item / Ativo</label>
-               <p className="text-slate-800 font-semibold text-lg">{selectedMaintenance.item}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Tipo</label>
-                <p className="text-slate-700 font-medium">{selectedMaintenance.type}</p>
-              </div>
-               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Prioridade</label>
-                <div className="flex"><StatusBadge status={selectedMaintenance.priority} /></div>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-6">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Data Programada</label>
-                <p className="text-slate-700 font-medium flex items-center gap-2">
-                   <Calendar size={14} className="text-slate-400"/>
-                   {new Date(selectedMaintenance.date).toLocaleDateString('pt-BR')}
-                </p>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Status</label>
-                <div className="flex"><StatusBadge status={selectedMaintenance.status} /></div>
-              </div>
-            </div>
-             <div>
-              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Responsável</label>
-              <p className="text-slate-700 font-medium flex items-center gap-2">
-                 <Truck size={14} className="text-slate-400"/>
-                 {selectedMaintenance.assignee}
-              </p>
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 };
 
-const UnitsView = ({ 
-  data, 
-  onUpdate,
-  residents
-}: { 
-  data: typeof MOCK_UNITS, 
-  onUpdate: (data: typeof MOCK_UNITS) => void,
-  residents: typeof MOCK_RESIDENTS
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ unit: '', block: '', owner: '', type: 'owner', status: 'occupied' });
+// --- VIEWS ---
 
-  const handleOpenModal = (item?: any) => {
-    if (item) {
-      setEditingItem(item);
-      setFormData({ unit: item.unit, block: item.block, owner: item.owner, type: item.type || 'owner', status: item.status });
-    } else {
-      setEditingItem(null);
-      setFormData({ unit: '', block: '', owner: '', type: 'owner', status: 'occupied' });
-    }
-    setIsModalOpen(true);
+const DashboardView = ({ currentCondoId, financeData, unitsData, maintenanceData, documentsData }: any) => {
+  const condoFinance = financeData.filter((f: any) => f.condoId === currentCondoId);
+  const condoUnits = unitsData.filter((u: any) => u.condoId === currentCondoId);
+  const condoMaintenance = maintenanceData.filter((m: any) => m.condoId === currentCondoId);
+  const condoDocs = documentsData.filter((d: any) => d.condoId === currentCondoId);
+
+  // Financial Calcs
+  const income = condoFinance.filter((t: any) => t.type === 'income' && t.status === 'paid').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const expense = condoFinance.filter((t: any) => t.type === 'expense' && t.status === 'paid').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const balance = income - expense;
+  
+  const pendingIncome = condoFinance.filter((t: any) => t.type === 'income' && t.status === 'pending').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const pendingExpense = condoFinance.filter((t: any) => t.type === 'expense' && t.status === 'pending').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const projectedBalance = balance + pendingIncome - pendingExpense;
+
+  // Operational Calcs
+  const debtUnits = condoUnits.filter((u: any) => u.status === 'debt').length;
+  const debtPercentage = (debtUnits / condoUnits.length * 100).toFixed(1);
+
+  const occupiedUnits = condoUnits.filter((u: any) => u.type !== 'vacant').length;
+  const occupancyRate = (occupiedUnits / condoUnits.length * 100).toFixed(0);
+
+  const pendingMaintenance = condoMaintenance.filter((m: any) => m.status === 'pending' || m.status === 'scheduled').length;
+  
+  // Document Calcs
+  const today = new Date();
+  const expiringDocs = condoDocs.filter((d: any) => {
+    if (d.permanent) return false;
+    if (!d.validUntil) return false;
+    const validDate = new Date(d.validUntil);
+    const diffTime = validDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 30; // Expired or expiring in 30 days
+  }).length;
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Saldo em Caixa" value={`R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} subtext="Atualizado hoje" icon={DollarSign} />
+        <StatCard title="Saldo Projetado" value={`R$ ${projectedBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} subtext={`A Pagar: ${pendingExpense.toLocaleString()}`} icon={Clock} />
+        <StatCard title="Inadimplência" value={`${debtUnits} Unidades`} subtext={`${debtPercentage}% do total`} trend="negative" icon={AlertTriangle} />
+        <StatCard title="Manutenção" value={pendingMaintenance} subtext="Ordens pendentes" icon={Wrench} />
+        <StatCard title="Ocupação" value={`${occupancyRate}%`} subtext="Unidades ocupadas" icon={Users} />
+        <StatCard title="Documentos" value={expiringDocs} subtext="Vencidos ou a Vencer" trend={expiringDocs > 0 ? "negative" : "positive"} icon={FileText} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card title="Próximas Manutenções" className="lg:col-span-2">
+           <div className="overflow-x-auto">
+             <table className="w-full text-sm text-left">
+               <thead className="text-xs text-slate-500 bg-slate-50 uppercase">
+                 <tr>
+                   <th className="px-4 py-3">Item</th>
+                   <th className="px-4 py-3">Data</th>
+                   <th className="px-4 py-3">Status</th>
+                   <th className="px-4 py-3 text-right">Ação</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {condoMaintenance.slice(0, 5).map((item: any) => (
+                   <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
+                     <td className="px-4 py-3 font-medium text-slate-800">{item.item}</td>
+                     <td className="px-4 py-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                     <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                     <td className="px-4 py-3 text-right">
+                       <button className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">Detalhes</button>
+                     </td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+           </div>
+        </Card>
+        
+        <Card title="Fluxo Recente">
+          <div className="space-y-4">
+            {condoFinance.slice(0, 5).map((item: any) => (
+              <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                   <div className={`p-2 rounded-full ${item.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                     {item.type === 'income' ? <DollarSign size={16} /> : <DollarSign size={16} />}
+                   </div>
+                   <div>
+                     <p className="text-sm font-medium text-slate-800">{item.description}</p>
+                     <p className="text-xs text-slate-500">{item.category}</p>
+                   </div>
+                </div>
+                <span className={`text-sm font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-slate-800'}`}>
+                  {item.type === 'income' ? '+' : '-'} R$ {item.amount.toLocaleString()}
+                </span>
+              </div>
+            ))}
+            <button className="w-full text-center text-sm text-indigo-600 hover:text-indigo-800 font-medium py-2">Ver Extrato Completo</button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+const UnitsView = ({ currentCondoId, data, residentsData, onUpdate }: any) => {
+  const [editingUnit, setEditingUnit] = useState<any>(null);
+  
+  const displayData = data.filter((u: any) => u.condoId === currentCondoId);
+  const condoResidents = residentsData.filter((r: any) => r.condoId === currentCondoId);
+
+  const handleEdit = (unit: any) => {
+    setEditingUnit({...unit});
   };
 
   const handleSave = () => {
-    if (editingItem) {
-      onUpdate(data.map(u => u.id === editingItem.id ? { ...u, ...formData } : u));
-    } else {
-      onUpdate([...data, { id: Date.now(), ...formData }]);
+    onUpdate(data.map((u: any) => u.id === editingUnit.id ? editingUnit : u));
+    setEditingUnit(null);
+  };
+
+  const handleCreate = () => {
+    const newUnit = { 
+      id: Date.now(), 
+      condoId: currentCondoId,
+      number: '', 
+      block: '', 
+      responsible: '', 
+      type: 'owner', 
+      status: 'paid' 
+    };
+    setEditingUnit(newUnit);
+  };
+
+  const handleDelete = (id: number) => {
+    if (typeof window !== 'undefined' && window.confirm('Excluir unidade?')) {
+      onUpdate(data.filter((u: any) => u.id !== id));
     }
-    setIsModalOpen(false);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Unidades</h2>
-        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm">
+        <button onClick={handleCreate} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
           <Plus size={18} /> Nova Unidade
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-            <tr>
-              <th className="p-4 pl-6 font-medium">Unidade</th>
-              <th className="p-4 font-medium">Responsável</th>
-              <th className="p-4 font-medium">Ocupação</th>
-              <th className="p-4 font-medium">Situação Financeira</th>
-              <th className="p-4 font-medium text-right pr-6">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {data.map((u) => (
-              <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 pl-6 font-medium text-slate-800">{u.unit} {u.block && `- Bloco ${u.block}`}</td>
-                <td className="p-4 text-slate-600">{u.owner || '-'}</td>
-                <td className="p-4 text-slate-600">
-                  {u.type === 'owner' ? 'Proprietário' : u.type === 'tenant' ? 'Inquilino' : 'Vazia'}
-                </td>
-                <td className="p-4"><StatusBadge status={u.status} /></td>
-                <td className="p-4 text-right pr-6">
-                  <button onClick={() => handleOpenModal(u)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
-                </td>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+              <tr>
+                <th className="px-6 py-4">Unidade</th>
+                <th className="px-6 py-4">Responsável</th>
+                <th className="px-6 py-4">Ocupação</th>
+                <th className="px-6 py-4">Situação Financeira</th>
+                <th className="px-6 py-4 text-right">Ações</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {displayData.map((unit: any) => (
+                <tr key={unit.id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 font-medium text-slate-800">{unit.number} - Bloco {unit.block}</td>
+                  <td className="px-6 py-4 text-slate-600">{unit.responsible}</td>
+                  <td className="px-6 py-4 text-slate-600 capitalize">{unit.type === 'owner' ? 'Proprietário' : unit.type === 'tenant' ? 'Inquilino' : 'Vazia'}</td>
+                  <td className="px-6 py-4"><StatusBadge status={unit.status} /></td>
+                  <td className="px-6 py-4 text-right">
+                    <button onClick={() => handleEdit(unit)} className="text-indigo-600 hover:text-indigo-800 font-medium transition-colors">Editar</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {isModalOpen && (
-        <Modal title={editingItem ? "Editar Unidade" : "Nova Unidade"} onClose={() => setIsModalOpen(false)}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Unidade</label>
-                <input 
-                  type="text" 
-                  value={formData.unit} 
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                  placeholder="Ex: 101"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Bloco</label>
-                <input 
-                  type="text" 
-                  value={formData.block} 
-                  onChange={(e) => setFormData({ ...formData, block: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                  placeholder="Ex: A"
-                />
-              </div>
+      <Modal isOpen={!!editingUnit} onClose={() => setEditingUnit(null)} title={editingUnit?.id ? "Editar Unidade" : "Nova Unidade"}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Unidade</label>
+              <input type="text" value={editingUnit?.number || ''} onChange={e => setEditingUnit({...editingUnit, number: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" placeholder="Ex: 101" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Responsável (Morador Cadastrado)</label>
-              <select
-                value={formData.owner}
-                onChange={(e) => setFormData({ ...formData, owner: e.target.value })}
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-              >
-                <option value="">Selecione o morador...</option>
-                {residents.map(r => (
-                  <option key={r.id} value={r.name}>{r.name} (CPF: {r.cpf})</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Ocupação</label>
-                <select 
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                >
-                  <option value="owner">Proprietário</option>
-                  <option value="tenant">Inquilino</option>
-                  <option value="vacant">Unidade Vazia</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Situação Financeira</label>
-                <select 
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                >
-                  <option value="occupied">Adimplente</option>
-                  <option value="debt">Inadimplente</option>
-                </select>
-              </div>
-            </div>
-            <div className="pt-4 flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium">Cancelar</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Bloco</label>
+              <input type="text" value={editingUnit?.block || ''} onChange={e => setEditingUnit({...editingUnit, block: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" placeholder="Ex: A" />
             </div>
           </div>
-        </Modal>
-      )}
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Responsável</label>
+            <select 
+              value={editingUnit?.responsible || ''} 
+              onChange={e => setEditingUnit({...editingUnit, responsible: e.target.value})} 
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
+            >
+              <option value="">Selecione...</option>
+              {condoResidents.map((r: any) => (
+                <option key={r.id} value={r.name}>{r.name} (Unidade {r.unit})</option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Tipo de Ocupação</label>
+              <select value={editingUnit?.type || 'owner'} onChange={e => setEditingUnit({...editingUnit, type: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white">
+                <option value="owner">Proprietário</option>
+                <option value="tenant">Inquilino</option>
+                <option value="vacant">Unidade Vazia</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Situação Financeira</label>
+              <select value={editingUnit?.status || 'paid'} onChange={e => setEditingUnit({...editingUnit, status: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white">
+                <option value="paid">Adimplente</option>
+                <option value="debt">Inadimplente</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={() => setEditingUnit(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+            <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Salvar</button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
 
-const ResidentsView = ({
-  data,
-  onUpdate
-}: {
-  data: typeof MOCK_RESIDENTS,
-  onUpdate: (data: typeof MOCK_RESIDENTS) => void
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+const MaintenanceView = ({ currentCondoId, data, suppliers, onUpdate }: any) => {
+  const [filter, setFilter] = useState('all');
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', cpf: '', rg: '', email: '', phone: '', occupants: 1 });
+  
+  const displayData = data.filter((m: any) => m.condoId === currentCondoId);
+  const filteredData = filter === 'all' ? displayData : displayData.filter((item: any) => item.status === filter);
+  const condoSuppliers = suppliers.filter((s: any) => s.condoId === currentCondoId);
 
-  const handleOpenModal = (item?: any) => {
-    if (item) {
-      setEditingItem(item);
-      setFormData({ 
-        name: item.name, 
-        cpf: item.cpf, 
-        rg: item.rg, 
-        email: item.email, 
-        phone: item.phone, 
-        occupants: item.occupants 
-      });
+  const handleAction = (id: number, action: string) => {
+    if (action === 'edit') {
+       const item = displayData.find((i: any) => i.id === id);
+       setEditingItem({...item});
     } else {
-      setEditingItem(null);
-      setFormData({ name: '', cpf: '', rg: '', email: '', phone: '', occupants: 1 });
+       let newStatus = action === 'complete' ? 'completed' : action === 'cancel' ? 'cancelled' : action === 'schedule' ? 'scheduled' : 'pending';
+       if (action === 'pending') newStatus = 'pending';
+       onUpdate(data.map((item: any) => item.id === id ? { ...item, status: newStatus } : item));
     }
-    setIsModalOpen(true);
   };
 
   const handleSave = () => {
-    if (editingItem) {
-      onUpdate(data.map(r => r.id === editingItem.id ? { ...r, ...formData } : r));
-    } else {
-      onUpdate([...data, { id: Date.now(), ...formData }]);
-    }
-    setIsModalOpen(false);
+     if (editingItem.id) {
+        onUpdate(data.map((item: any) => item.id === editingItem.id ? editingItem : item));
+     } else {
+        onUpdate([...data, { ...editingItem, id: Date.now(), condoId: currentCondoId, status: 'scheduled' }]);
+     }
+     setEditingItem(null);
+  };
+
+  const handleCreate = () => {
+    setEditingItem({ item: '', date: '', validUntil: '', type: 'preventive', supplier: '' });
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Moradores</h2>
-        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm">
-          <Plus size={18} /> Nova Morador
+        <h2 className="text-2xl font-bold text-slate-800">Plano de Manutenção</h2>
+        <button onClick={handleCreate} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+          <Plus size={18} /> Nova O.S.
         </button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-            <tr>
-              <th className="p-4 pl-6 font-medium">Nome</th>
-              <th className="p-4 font-medium">CPF</th>
-              <th className="p-4 font-medium">Contato</th>
-              <th className="p-4 font-medium">Ocupantes</th>
-              <th className="p-4 font-medium text-right pr-6">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {data.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 pl-6 font-medium text-slate-800">
-                  <div>{r.name}</div>
-                  <div className="text-xs text-slate-500">RG: {r.rg}</div>
-                </td>
-                <td className="p-4 text-slate-600">{r.cpf}</td>
-                <td className="p-4 text-slate-600">
-                  <div>{r.phone}</div>
-                  <div className="text-xs text-slate-500">{r.email}</div>
-                </td>
-                <td className="p-4 text-slate-600">{r.occupants}</td>
-                <td className="p-4 text-right pr-6">
-                  <button onClick={() => handleOpenModal(r)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <Card>
+        <div className="flex gap-2 mb-6">
+          {['all', 'pending'].map((f) => (
+            <button 
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-indigo-100 text-indigo-700' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
+            >
+              {f === 'all' ? 'Todas' : 'Pendentes'}
+            </button>
+          ))}
+        </div>
 
-      {isModalOpen && (
-        <Modal title={editingItem ? "Editar Morador" : "Novo Morador"} onClose={() => setIsModalOpen(false)}>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Nome Completo</label>
-              <input 
-                type="text" 
-                value={formData.name} 
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">CPF</label>
-                <input 
-                  type="text" 
-                  value={formData.cpf} 
-                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                  placeholder="000.000.000-00"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">RG</label>
-                <input 
-                  type="text" 
-                  value={formData.rg} 
-                  onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                <input 
-                  type="email" 
-                  value={formData.email} 
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Telefone</label>
-                <input 
-                  type="text" 
-                  value={formData.phone} 
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Número de Ocupantes no Imóvel</label>
-              <input 
-                type="number" 
-                value={formData.occupants} 
-                onChange={(e) => setFormData({ ...formData, occupants: parseInt(e.target.value) || 0 })}
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" 
-              />
-            </div>
-            
-            <div className="pt-4 flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-50 rounded-lg font-medium">Cancelar</button>
-              <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
-            </div>
-          </div>
-        </Modal>
-      )}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-500 bg-slate-50 uppercase">
+              <tr>
+                <th className="px-4 py-3">Item</th>
+                <th className="px-4 py-3">Data Programada</th>
+                <th className="px-4 py-3">Validade</th>
+                <th className="px-4 py-3">Tipo</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map((item: any) => (
+                <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-slate-800">{item.item}</p>
+                    <p className="text-xs text-slate-500">{item.supplier}</p>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {item.validUntil ? new Date(item.validUntil).toLocaleDateString('pt-BR') : '-'}
+                  </td>
+                  <td className="px-4 py-3 capitalize text-slate-600">{item.type === 'preventive' ? 'Preventiva' : item.type === 'corrective' ? 'Corretiva' : 'Rotina'}</td>
+                  <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                  <td className="px-4 py-3 text-right group relative">
+                     <button className="text-slate-400 hover:text-indigo-600"><Settings size={18} /></button>
+                     <div className="absolute right-0 top-8 w-40 bg-white rounded-lg shadow-xl border border-slate-100 hidden group-hover:block z-10">
+                       <button onClick={() => handleAction(item.id, 'edit')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 text-slate-700">Editar</button>
+                       <button onClick={() => handleAction(item.id, 'schedule')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 text-blue-600">Agendar</button>
+                       <button onClick={() => handleAction(item.id, 'pending')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 text-amber-600">Pendente</button>
+                       <button onClick={() => handleAction(item.id, 'complete')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 text-emerald-600">Concluir</button>
+                       <button onClick={() => handleAction(item.id, 'cancel')} className="w-full text-left px-4 py-2 text-xs hover:bg-slate-50 text-rose-600">Cancelar</button>
+                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Modal isOpen={!!editingItem} onClose={() => setEditingItem(null)} title={editingItem?.id ? "Editar O.S." : "Nova Ordem de Serviço"}>
+        <div className="space-y-4">
+           <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Item / Equipamento</label>
+              <input type="text" value={editingItem?.item || ''} onChange={e => setEditingItem({...editingItem, item: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" />
+           </div>
+           <div>
+             <label className="block text-xs font-medium text-slate-500 mb-1">Fornecedor</label>
+             <select value={editingItem?.supplier || ''} onChange={e => setEditingItem({...editingItem, supplier: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white">
+               <option value="">Selecione...</option>
+               {condoSuppliers.map((s: any) => <option key={s.id} value={s.name}>{s.name} ({s.category})</option>)}
+             </select>
+           </div>
+           <div className="grid grid-cols-2 gap-4">
+             <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Tipo</label>
+               <select value={editingItem?.type || 'preventive'} onChange={e => setEditingItem({...editingItem, type: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white">
+                 <option value="preventive">Preventiva</option>
+                 <option value="corrective">Corretiva</option>
+               </select>
+             </div>
+             <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Data Execução / Programada</label>
+               <input type="date" value={editingItem?.date || ''} onChange={e => setEditingItem({...editingItem, date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" />
+             </div>
+           </div>
+           {editingItem?.type === 'preventive' && (
+             <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Data de Validade (Legislação)</label>
+               <input type="date" value={editingItem?.validUntil || ''} onChange={e => setEditingItem({...editingItem, validUntil: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" />
+             </div>
+           )}
+           <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar</button>
+        </div>
+      </Modal>
     </div>
   );
 };
 
-const FinanceView = ({ 
-  data, 
-  onUpdate,
-  suppliers
-}: { 
-  data: typeof MOCK_FINANCE, 
-  onUpdate: (data: typeof MOCK_FINANCE) => void,
-  suppliers: typeof MOCK_SUPPLIERS
-}) => {
-  const [activeTab, setActiveTab] = useState<'all' | 'payable' | 'receivable'>('all');
+const FinanceView = ({ currentCondoId, data, suppliers, onUpdate }: any) => {
+  const [showModal, setShowModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
-  const [newEntry, setNewEntry] = useState({ desc: '', amount: '', type: 'expense', category: 'Outros', date: new Date().toISOString().split('T')[0], supplier: '' });
-  const [reportFormat, setReportFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
+  const [newEntry, setNewEntry] = useState({ description: '', category: '', amount: '', type: 'expense', date: new Date().toISOString().split('T')[0], supplier: '', dueDate: new Date().toISOString().split('T')[0] });
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [reportFormat, setReportFormat] = useState('');
   
-  const financeStats = useMemo(() => {
-    const income = data.filter(t => t.type === 'income' && t.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-    const expense = data.filter(t => t.type === 'expense' && t.status === 'paid').reduce((acc, curr) => acc + curr.amount, 0);
-    const balance = income - expense;
-
-    const receivable = data.filter(t => t.type === 'income' && (t.status === 'pending' || t.status === 'overdue')).reduce((acc, curr) => acc + curr.amount, 0);
-    const payable = data.filter(t => t.type === 'expense' && (t.status === 'pending' || t.status === 'overdue')).reduce((acc, curr) => acc + curr.amount, 0);
-    
-    const forecast = balance + receivable - payable;
-
-    return { balance, receivable, payable, forecast };
-  }, [data]);
+  const displayData = data.filter((f: any) => f.condoId === currentCondoId);
+  const condoSuppliers = suppliers.filter((s: any) => s.condoId === currentCondoId);
 
   const filteredData = useMemo(() => {
-    if (activeTab === 'payable') return data.filter(i => i.type === 'expense');
-    if (activeTab === 'receivable') return data.filter(i => i.type === 'income');
-    return data;
-  }, [activeTab, data]);
+    return displayData.filter((item: any) => {
+      if (!dateRange.start && !dateRange.end) return true;
+      const itemDate = new Date(item.date);
+      const start = dateRange.start ? new Date(dateRange.start) : new Date(0);
+      const end = dateRange.end ? new Date(dateRange.end) : new Date(8640000000000000);
+      return itemDate >= start && itemDate <= end;
+    });
+  }, [displayData, dateRange]);
 
   const handleSaveEntry = () => {
-    const amount = parseFloat(newEntry.amount);
-    if (!newEntry.desc || isNaN(amount)) return;
-
-    onUpdate([{
+    onUpdate([...data, { 
       id: Date.now(),
-      desc: newEntry.desc,
-      amount: amount,
-      type: newEntry.type,
-      category: newEntry.category,
-      status: 'pending',
-      date: newEntry.date || new Date().toISOString(),
-      supplier: newEntry.type === 'expense' ? newEntry.supplier : undefined
-    }, ...data]);
-    
-    setIsFormOpen(false);
-    setNewEntry({ desc: '', amount: '', type: 'expense', category: 'Outros', date: new Date().toISOString().split('T')[0], supplier: '' });
-  }
+      condoId: currentCondoId,
+      ...newEntry, 
+      amount: Number(newEntry.amount),
+      status: 'pending' 
+    }]);
+    setShowModal(false);
+    setNewEntry({ description: '', category: '', amount: '', type: 'expense', date: new Date().toISOString().split('T')[0], supplier: '', dueDate: new Date().toISOString().split('T')[0] });
+  };
 
-  const handleStatusChange = (id: number, newStatus: string) => {
-    onUpdate(data.map(f => f.id === id ? { ...f, status: newStatus } : f));
-    setOpenActionMenuId(null);
-  }
+  const handleStatusChange = (id: number, status: string) => {
+    onUpdate(data.map((item: any) => item.id === id ? { ...item, status } : item));
+  };
+
+  const handleGenerateReport = () => {
+    if (!reportFormat) return alert('Selecione um formato');
+    alert(`Gerando relatório em ${reportFormat.toUpperCase()}... Download iniciado.`);
+    setShowReportModal(false);
+  };
+
+  // Finance Panel Calcs
+  const currentBalance = displayData.filter((t: any) => t.status === 'paid').reduce((acc: number, curr: any) => acc + (curr.type === 'income' ? curr.amount : -curr.amount), 0);
+  const toReceive = displayData.filter((t: any) => t.status === 'pending' && t.type === 'income').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const toPay = displayData.filter((t: any) => t.status === 'pending' && t.type === 'expense').reduce((acc: number, curr: any) => acc + curr.amount, 0);
+  const projected = currentBalance + toReceive - toPay;
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
         <div className="flex gap-2">
-          <button 
-            onClick={() => setShowReportModal(true)}
-            className="text-slate-600 hover:text-slate-800 px-4 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 font-medium flex items-center gap-2"
-          >
-            <FileText size={18} /> Relatórios
-          </button>
-          <button 
-            onClick={() => setIsFormOpen(true)}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm"
-          >
-            <Plus size={18} /> Novo Lançamento
-          </button>
+           <button onClick={() => setShowReportModal(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2 shadow-sm">
+             <FileText size={18} /> Relatórios
+           </button>
+           <button onClick={() => setShowModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+             <Plus size={18} /> Novo Lançamento
+           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
-          <div className="flex justify-between items-start z-10">
-            <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">Saldo em Caixa</p>
-              <h3 className={`text-2xl font-bold ${financeStats.balance >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
-                R$ {financeStats.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </h3>
-            </div>
-            <div className="p-2 bg-slate-100 rounded-lg text-slate-600">
-              <Wallet size={20} />
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-emerald-300"></div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-b-4 border-b-emerald-500">
+           <p className="text-xs text-slate-500 uppercase font-bold">Saldo em Caixa</p>
+           <h3 className="text-xl font-bold text-slate-800 mt-1">R$ {currentBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
         </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
-          <div className="flex justify-between items-start z-10">
-            <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">A Receber (Previsão)</p>
-              <h3 className="text-2xl font-bold text-slate-800">
-                R$ {financeStats.receivable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </h3>
-            </div>
-             <div className="p-2 bg-emerald-50 rounded-lg text-emerald-600">
-              <TrendingUp size={20} />
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-200"></div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-b-4 border-b-emerald-300">
+           <p className="text-xs text-slate-500 uppercase font-bold">A Receber (Previsão)</p>
+           <h3 className="text-xl font-bold text-emerald-600 mt-1">R$ {toReceive.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
         </div>
-
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
-          <div className="flex justify-between items-start z-10">
-            <div>
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">A Pagar (Previsão)</p>
-              <h3 className="text-2xl font-bold text-slate-800">
-                R$ {financeStats.payable.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </h3>
-            </div>
-            <div className="p-2 bg-red-50 rounded-lg text-red-600">
-              <TrendingDown size={20} />
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-red-200"></div>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-b-4 border-b-rose-300">
+           <p className="text-xs text-slate-500 uppercase font-bold">A Pagar (Previsão)</p>
+           <h3 className="text-xl font-bold text-rose-600 mt-1">R$ {toPay.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
         </div>
-
-        <div className="bg-indigo-900 p-5 rounded-xl border border-indigo-800 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden">
-          <div className="flex justify-between items-start z-10">
-            <div>
-              <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider mb-1">Saldo Previsto Final</p>
-              <h3 className="text-2xl font-bold text-white">
-                R$ {financeStats.forecast.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-              </h3>
-            </div>
-            <div className="p-2 bg-indigo-800 rounded-lg text-indigo-200">
-              <PieChart size={20} />
-            </div>
-          </div>
-          <p className="text-xs text-indigo-300 z-10 mt-1">Saldo Caixa + Receber - Pagar</p>
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm border-b-4 border-b-indigo-500 bg-indigo-50">
+           <p className="text-xs text-indigo-800 uppercase font-bold">Saldo Previsto Final</p>
+           <h3 className="text-xl font-bold text-indigo-900 mt-1">R$ {projected.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
+           <p className="text-[10px] text-indigo-600">Saldo Caixa + Receber - Pagar</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="border-b border-slate-100 p-4">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'all' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Extrato Completo
-            </button>
-            <button 
-               onClick={() => setActiveTab('payable')}
-               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'payable' ? 'bg-red-50 text-red-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Contas a Pagar
-            </button>
-            <button 
-               onClick={() => setActiveTab('receivable')}
-               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'receivable' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Contas a Receber
-            </button>
-          </div>
+      <Card>
+        <div className="flex flex-wrap gap-4 mb-6 items-end bg-slate-50 p-4 rounded-lg">
+           <div className="flex-1 min-w-[200px]">
+             <label className="block text-xs font-medium text-slate-500 mb-1">Período Início</label>
+             <input type="date" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+           </div>
+           <div className="flex-1 min-w-[200px]">
+             <label className="block text-xs font-medium text-slate-500 mb-1">Período Fim</label>
+             <input type="date" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+           </div>
+           <button onClick={() => setDateRange({start: '', end: ''})} className="px-4 py-2 text-sm text-slate-600 hover:text-indigo-600">Limpar Filtros</button>
         </div>
 
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+              <tr>
+                <th className="px-4 py-3">Descrição</th>
+                <th className="px-4 py-3">Categoria</th>
+                <th className="px-4 py-3">Data</th>
+                <th className="px-4 py-3">Vencimento</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Valor</th>
+                <th className="px-4 py-3 w-10"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredData.map((item: any) => (
+                <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium">
+                    <div className="flex items-center gap-2">
+                       <div className={`p-1.5 rounded-full ${item.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                         {item.type === 'income' ? <DollarSign size={14} /> : <DollarSign size={14} />}
+                       </div>
+                       <div>
+                         <p className="text-slate-800">{item.description}</p>
+                         {item.supplier && <p className="text-[10px] text-slate-500 flex items-center gap-1"><Truck size={10} /> {item.supplier}</p>}
+                       </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{item.category}</td>
+                  <td className="px-4 py-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                  <td className="px-4 py-3 text-slate-600">{item.dueDate ? new Date(item.dueDate).toLocaleDateString('pt-BR') : '-'}</td>
+                  <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                  <td className={`px-4 py-3 text-right font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {item.type === 'income' ? '+' : '-'} R$ {item.amount.toLocaleString('pt-BR', {minimumFractionDigits: 2})}
+                  </td>
+                  <td className="px-4 py-3 text-right group relative">
+                     <button className="text-slate-400 hover:text-indigo-600"><MoreVertical size={16} /></button>
+                     <div className="absolute right-0 top-6 w-32 bg-white rounded-lg shadow-xl border border-slate-100 hidden group-hover:block z-10">
+                        <button onClick={() => handleStatusChange(item.id, 'paid')} className="w-full text-left px-4 py-2 text-xs hover:bg-emerald-50 text-emerald-600">Marcar Pago</button>
+                        <button onClick={() => handleStatusChange(item.id, 'pending')} className="w-full text-left px-4 py-2 text-xs hover:bg-amber-50 text-amber-600">Marcar Pendente</button>
+                        <button onClick={() => handleStatusChange(item.id, 'overdue')} className="w-full text-left px-4 py-2 text-xs hover:bg-rose-50 text-rose-600">Marcar Vencido</button>
+                     </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Novo Lançamento">
+        <div className="space-y-4">
+          <div className="flex gap-4">
+            <button onClick={() => setNewEntry({...newEntry, type: 'income'})} className={`flex-1 py-2 rounded-lg border ${newEntry.type === 'income' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'border-slate-200'}`}>Receita</button>
+            <button onClick={() => setNewEntry({...newEntry, type: 'expense'})} className={`flex-1 py-2 rounded-lg border ${newEntry.type === 'expense' ? 'bg-rose-50 border-rose-500 text-rose-700' : 'border-slate-200'}`}>Despesa</button>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Descrição</label>
+            <input type="text" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" placeholder="Ex: Pagamento Fornecedor" />
+          </div>
+          {newEntry.type === 'expense' && (
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Fornecedor</label>
+              <select value={newEntry.supplier} onChange={e => setNewEntry({...newEntry, supplier: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white">
+                <option value="">Selecione...</option>
+                {condoSuppliers.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Categoria</label>
+              <input type="text" value={newEntry.category} onChange={e => setNewEntry({...newEntry, category: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" placeholder="Ex: Manutenção" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Data Vencimento</label>
+              <input type="date" value={newEntry.dueDate} onChange={e => setNewEntry({...newEntry, dueDate: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Valor (R$)</label>
+            <input type="number" value={newEntry.amount} onChange={e => setNewEntry({...newEntry, amount: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white" placeholder="0.00" />
+          </div>
+          <button onClick={handleSaveEntry} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar Lançamento</button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Exportar Relatórios">
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 border-2 border-slate-100 rounded-xl hover:border-indigo-100 cursor-pointer transition-all">
+              <p className="font-semibold text-slate-800">Fluxo de Caixa</p>
+              <p className="text-xs text-slate-500 mt-1">Entradas e saídas detalhadas</p>
+            </div>
+            <div className="p-4 border-2 border-slate-100 rounded-xl hover:border-indigo-100 cursor-pointer transition-all">
+              <p className="font-semibold text-slate-800">Inadimplência</p>
+              <p className="text-xs text-slate-500 mt-1">Relatório de devedores</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-slate-700 mb-3">Formato</p>
+            <div className="flex gap-3">
+               {['PDF', 'Excel', 'CSV'].map(fmt => (
+                 <button 
+                   key={fmt} 
+                   onClick={() => setReportFormat(fmt)}
+                   className={`flex-1 py-3 rounded-lg border text-sm font-medium flex flex-col items-center gap-2 ${reportFormat === fmt ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                 >
+                   <FileText size={18} /> {fmt}
+                 </button>
+               ))}
+            </div>
+          </div>
+          <button onClick={handleGenerateReport} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-xl shadow-lg shadow-indigo-200">
+            Gerar Relatório
+          </button>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+const SuppliersView = ({ currentCondoId, data, onUpdate }: any) => {
+  const [editingSupplier, setEditingSupplier] = useState<any>(null);
+  const displayData = data.filter((s: any) => s.condoId === currentCondoId);
+
+  const handleEdit = (supplier: any) => {
+    setEditingSupplier({...supplier});
+  };
+
+  const handleSave = () => {
+    if (editingSupplier.id) {
+       onUpdate(data.map((s: any) => s.id === editingSupplier.id ? editingSupplier : s));
+    } else {
+       onUpdate([...data, { ...editingSupplier, id: Date.now(), condoId: currentCondoId, status: 'active' }]);
+    }
+    setEditingSupplier(null);
+  };
+
+  const handleDownloadContract = () => {
+    const blob = new Blob(["CONTRATO DE PRESTAÇÃO DE SERVIÇOS\n\nEntre as partes..."], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Contrato_Prestacao_Servicos.txt';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Fornecedores</h2>
+        <button 
+          onClick={() => setEditingSupplier({ name: '', category: '', contact: '', contractStart: '', contractEnd: '', status: 'active' })} 
+          className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm"
+        >
+          <Plus size={18} /> Novo Fornecedor
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
+          <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
             <tr>
-              <th className="p-4 pl-6 font-medium">Descrição</th>
-              <th className="p-4 font-medium">Categoria</th>
-              <th className="p-4 font-medium">Data</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium">Valor</th>
-              <th className="p-4 font-medium text-right pr-6">Ações</th>
+              <th className="px-6 py-4">Nome</th>
+              <th className="px-6 py-4">Categoria</th>
+              <th className="px-6 py-4">Contato</th>
+              <th className="px-6 py-4">Status</th>
+              <th className="px-6 py-4 text-right">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredData.map((f) => (
-              <tr key={f.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 pl-6 font-medium text-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-1.5 rounded-full ${f.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                      {f.type === 'income' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
-                    </div>
-                    <div>
-                      <div>{f.desc}</div>
-                      {f.supplier && (
-                         <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                            <Truck size={12} /> {f.supplier}
-                         </div>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 text-slate-500">{f.category}</td>
-                <td className="p-4 text-slate-500">{new Date(f.date).toLocaleDateString('pt-BR')}</td>
-                <td className="p-4"><StatusBadge status={f.status} /></td>
-                <td className={`p-4 font-semibold ${f.type === 'income' ? 'text-emerald-600' : 'text-slate-700'}`}>
-                  {f.type === 'income' ? '+' : '-'} R$ {f.amount.toFixed(2)}
-                </td>
-                <td className="p-4 text-right pr-6 relative">
-                   <button 
-                     onClick={() => setOpenActionMenuId(openActionMenuId === f.id ? null : f.id)}
-                     className="p-1.5 hover:bg-slate-200 rounded-md text-slate-500 hover:text-slate-700 transition-colors"
-                   >
-                     <Settings size={16} />
-                   </button>
-                   {openActionMenuId === f.id && (
-                     <div className="absolute right-8 top-8 z-10 w-36 bg-white rounded-lg shadow-xl border border-slate-100 py-1 animate-in fade-in zoom-in-95 duration-100">
-                       <button onClick={() => handleStatusChange(f.id, 'pending')} className="w-full text-left px-4 py-2 text-xs font-medium text-amber-600 hover:bg-amber-50">Marcar Pendente</button>
-                       <button onClick={() => handleStatusChange(f.id, 'paid')} className="w-full text-left px-4 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50">Marcar Pago</button>
-                       <button onClick={() => handleStatusChange(f.id, 'overdue')} className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50">Marcar Vencido</button>
-                     </div>
-                   )}
+          <tbody>
+            {displayData.map((s: any) => (
+              <tr key={s.id} className="border-b last:border-0 hover:bg-slate-50">
+                <td className="px-6 py-4 font-medium text-slate-800">{s.name}</td>
+                <td className="px-6 py-4 text-slate-600">{s.category}</td>
+                <td className="px-6 py-4 text-slate-600">{s.contact}</td>
+                <td className="px-6 py-4"><StatusBadge status={s.status} /></td>
+                <td className="px-6 py-4 text-right flex justify-end gap-3">
+                   <button type="button" onClick={handleDownloadContract} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Contrato</button>
+                   <button type="button" onClick={() => handleEdit(s)} className="text-slate-500 hover:text-indigo-600 text-xs font-medium">Editar</button>
                 </td>
               </tr>
             ))}
@@ -990,239 +892,296 @@ const FinanceView = ({
         </table>
       </div>
 
-      {showReportModal && (
-        <Modal title="Exportar Relatórios" onClose={() => setShowReportModal(false)}>
-           <div className="space-y-5">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-2">Período</label>
-               <div className="grid grid-cols-2 gap-3">
-                 <input type="date" className="p-2 bg-white border border-slate-200 rounded-lg text-sm" />
-                 <input type="date" className="p-2 bg-white border border-slate-200 rounded-lg text-sm" />
-               </div>
-             </div>
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-2">Tipo de Relatório</label>
-               <select className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm">
-                 <option>Fluxo de Caixa Detalhado</option>
-                 <option>Inadimplência por Unidade</option>
-                 <option>Despesas por Categoria</option>
-               </select>
-             </div>
-             <div className="pt-2">
-               <label className="block text-sm font-medium text-slate-700 mb-3">Formato</label>
-               <div className="flex gap-3">
-                 <button 
-                   onClick={() => setReportFormat('pdf')}
-                   className={`flex-1 py-3 border rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${reportFormat === 'pdf' ? 'border-indigo-500 bg-indigo-50 text-indigo-700 ring-1 ring-indigo-500' : 'border-slate-200 bg-white hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-700'}`}
-                 >
-                   <FileText size={20} />
-                   <span className="text-xs font-medium">PDF</span>
-                 </button>
-                 <button 
-                   onClick={() => setReportFormat('excel')}
-                   className={`flex-1 py-3 border rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${reportFormat === 'excel' ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500' : 'border-slate-200 bg-white hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700'}`}
-                 >
-                   <File size={20} />
-                   <span className="text-xs font-medium">Excel</span>
-                 </button>
-                 <button 
-                   onClick={() => setReportFormat('csv')}
-                   className={`flex-1 py-3 border rounded-xl flex flex-col items-center justify-center gap-2 transition-all ${reportFormat === 'csv' ? 'border-slate-500 bg-slate-50 text-slate-700 ring-1 ring-slate-500' : 'border-slate-200 bg-white hover:border-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
-                 >
-                   <Download size={20} />
-                   <span className="text-xs font-medium">CSV</span>
-                 </button>
-               </div>
-             </div>
-             <button 
-               onClick={() => setShowReportModal(false)}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-             >
-               Gerar Relatório
-             </button>
-           </div>
-        </Modal>
-      )}
-
-      {isFormOpen && (
-        <Modal title="Novo Lançamento" onClose={() => setIsFormOpen(false)}>
-          <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
-               <input 
-                 type="text" 
-                 value={newEntry.desc}
-                 onChange={e => setNewEntry({...newEntry, desc: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                 placeholder="Ex: Pagamento Jardineiro" 
-               />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Valor</label>
-                   <input 
-                     type="number" 
-                     value={newEntry.amount}
-                     onChange={e => setNewEntry({...newEntry, amount: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                     placeholder="0,00" 
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
-                   <select 
-                     value={newEntry.type}
-                     onChange={e => setNewEntry({...newEntry, type: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                   >
-                     <option value="expense">Despesa</option>
-                     <option value="income">Receita</option>
-                   </select>
-                </div>
-             </div>
-             <div className="grid grid-cols-2 gap-4">
+      <Modal isOpen={!!editingSupplier} onClose={() => setEditingSupplier(null)} title={editingSupplier?.id ? "Editar Fornecedor" : "Novo Fornecedor"}>
+         <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Razão Social / Nome</label>
+              <input type="text" value={editingSupplier?.name || ''} onChange={e => setEditingSupplier({...editingSupplier, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Categoria</label>
+              <input type="text" value={editingSupplier?.category || ''} onChange={e => setEditingSupplier({...editingSupplier, category: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" placeholder="Manutenção, Segurança..." />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Contato</label>
+              <input type="text" value={editingSupplier?.contact || ''} onChange={e => setEditingSupplier({...editingSupplier, contact: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
                <div>
-                 <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
-                 <input 
-                   type="text" 
-                   value={newEntry.category}
-                   onChange={e => setNewEntry({...newEntry, category: e.target.value})}
-                   className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   placeholder="Ex: Manutenção, Aluguel" 
-                 />
+                 <label className="block text-xs font-medium text-slate-500 mb-1">Início Contrato</label>
+                 <input type="date" value={editingSupplier?.contractStart || ''} onChange={e => setEditingSupplier({...editingSupplier, contractStart: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
                </div>
                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Data de Vencimento</label>
-                   <input
-                     type="date"
-                     value={newEntry.date}
-                     onChange={e => setNewEntry({...newEntry, date: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                   />
-                </div>
-             </div>
-
-             {newEntry.type === 'expense' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Fornecedor (Opcional)</label>
-                  <select
-                     value={newEntry.supplier}
-                     onChange={e => setNewEntry({...newEntry, supplier: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                  >
-                     <option value="">Selecione...</option>
-                     {suppliers.map(s => (
-                        <option key={s.id} value={s.name}>{s.name} - {s.category}</option>
-                     ))}
-                  </select>
-                </div>
-             )}
-
-             <button 
-               onClick={handleSaveEntry}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-             >
-               Salvar Lançamento
-             </button>
-          </div>
-        </Modal>
-      )}
+                 <label className="block text-xs font-medium text-slate-500 mb-1">Fim Contrato</label>
+                 <input type="date" value={editingSupplier?.contractEnd || ''} onChange={e => setEditingSupplier({...editingSupplier, contractEnd: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+               </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Status</label>
+              <select value={editingSupplier?.status || 'active'} onChange={e => setEditingSupplier({...editingSupplier, status: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                 <option value="active">Ativo</option>
+                 <option value="inactive">Inativo</option>
+              </select>
+            </div>
+            <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar</button>
+         </div>
+      </Modal>
     </div>
   );
 };
 
-const DocumentsView = ({ 
-  data, 
-  onUpdate 
-}: { 
-  data: typeof MOCK_DOCUMENTS, 
-  onUpdate: (data: typeof MOCK_DOCUMENTS) => void 
-}) => {
+const InfractionsView = ({ currentCondoId, data, regulations, onUpdate, onUpdateRules }: any) => {
+  const [activeTab, setActiveTab] = useState('occurrences');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedInfraction, setSelectedInfraction] = useState<any>(null);
+  
+  // New Infraction Form
+  const [newInfraction, setNewInfraction] = useState({ unit: '', typeId: '', date: new Date().toISOString().split('T')[0], description: '', manualRecurrence: false });
+  
+  const displayData = data.filter((i: any) => i.condoId === currentCondoId);
+  const condoRegulations = regulations.filter((r: any) => r.condoId === currentCondoId);
+
+  // Recurrence logic
+  const existingCount = newInfraction.unit && newInfraction.typeId 
+    ? displayData.filter((i: any) => i.unit === newInfraction.unit && i.type === condoRegulations.find((r:any) => r.id === Number(newInfraction.typeId))?.description).length 
+    : 0;
+  
+  const handleSave = () => {
+    const rule = condoRegulations.find((r: any) => r.id === Number(newInfraction.typeId));
+    onUpdate([...data, {
+      id: Date.now(),
+      condoId: currentCondoId,
+      unit: newInfraction.unit,
+      type: rule?.description || 'Outros',
+      date: newInfraction.date,
+      fine: rule?.defaultFine || 0,
+      status: 'defense_pending',
+      recurrence: newInfraction.manualRecurrence ? existingCount + 2 : existingCount + 1
+    }]);
+    setShowModal(false);
+    setNewInfraction({ unit: '', typeId: '', date: new Date().toISOString().split('T')[0], description: '', manualRecurrence: false });
+  };
+
+  const handleStatusChange = (status: string) => {
+    if (selectedInfraction) {
+       onUpdate(data.map((i: any) => i.id === selectedInfraction.id ? { ...i, status } : i));
+       setSelectedInfraction({ ...selectedInfraction, status }); // Update local modal state
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Infrações e Regulação</h2>
+        <button onClick={() => setShowModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+          <Plus size={18} /> Registrar Infração
+        </button>
+      </div>
+
+      <Card>
+        <div className="flex gap-4 border-b border-slate-100 mb-6">
+           <button onClick={() => setActiveTab('occurrences')} className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'occurrences' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>Ocorrências</button>
+           <button onClick={() => setActiveTab('rules')} className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'rules' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>Regimento Interno</button>
+        </div>
+
+        {activeTab === 'occurrences' ? (
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-slate-500 bg-slate-50 uppercase">
+              <tr>
+                <th className="px-4 py-3">Unidade</th>
+                <th className="px-4 py-3">Tipo de Infração</th>
+                <th className="px-4 py-3">Data</th>
+                <th className="px-4 py-3">Reincidência</th>
+                <th className="px-4 py-3">Valor Multa</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {displayData.map((item: any) => (
+                <tr key={item.id} className="border-b last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3 font-bold text-slate-800">Unit {item.unit}</td>
+                  <td className="px-4 py-3 text-slate-600">{item.type}</td>
+                  <td className="px-4 py-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                  <td className="px-4 py-3">
+                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${item.recurrence > 1 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-600'}`}>
+                        {item.recurrence}ª vez
+                     </span>
+                  </td>
+                  <td className="px-4 py-3 font-medium">R$ {item.fine.toFixed(2)}</td>
+                  <td className="px-4 py-3"><StatusBadge status={item.status} /></td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => setSelectedInfraction(item)} className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">Detalhes</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div>
+             <div className="flex justify-end mb-4">
+               <button className="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1 rounded text-slate-600 font-medium">+ Adicionar Regra</button>
+             </div>
+             <table className="w-full text-sm text-left">
+               <thead className="text-xs text-slate-500 bg-slate-50 uppercase">
+                 <tr>
+                    <th className="px-4 py-3">Artigo</th>
+                    <th className="px-4 py-3">Descrição</th>
+                    <th className="px-4 py-3">Gravidade</th>
+                    <th className="px-4 py-3">Multa Padrão</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {condoRegulations.map((rule: any) => (
+                   <tr key={rule.id} className="border-b last:border-0">
+                      <td className="px-4 py-3 font-medium">{rule.article}</td>
+                      <td className="px-4 py-3">{rule.description}</td>
+                      <td className="px-4 py-3">{rule.severity}</td>
+                      <td className="px-4 py-3">R$ {rule.defaultFine.toFixed(2)}</td>
+                   </tr>
+                 ))}
+               </tbody>
+             </table>
+          </div>
+        )}
+      </Card>
+
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Registrar Infração">
+         <div className="space-y-4">
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Unidade</label>
+               <input type="text" value={newInfraction.unit} onChange={e => setNewInfraction({...newInfraction, unit: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" placeholder="Ex: 101" />
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Tipo de Infração (Regimento)</label>
+               <select value={newInfraction.typeId} onChange={e => setNewInfraction({...newInfraction, typeId: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                  <option value="">Selecione...</option>
+                  {condoRegulations.map((r: any) => <option key={r.id} value={r.id}>{r.article} - {r.description} (R$ {r.defaultFine})</option>)}
+               </select>
+            </div>
+            {newInfraction.unit && newInfraction.typeId && existingCount > 0 && (
+               <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-xs flex items-center gap-2">
+                  <AlertTriangle size={14} />
+                   Atenção: Esta é a {existingCount + 1}ª ocorrência deste tipo para esta unidade.
+               </div>
+            )}
+            <div className="flex items-center gap-2">
+               <input type="checkbox" checked={newInfraction.manualRecurrence} onChange={e => setNewInfraction({...newInfraction, manualRecurrence: e.target.checked})} />
+               <label className="text-xs text-slate-600">Marcar como Reincidente Manualmente</label>
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Data</label>
+               <input type="date" value={newInfraction.date} onChange={e => setNewInfraction({...newInfraction, date: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar</button>
+         </div>
+      </Modal>
+
+      <Modal isOpen={!!selectedInfraction} onClose={() => setSelectedInfraction(null)} title="Detalhes da Infração">
+         <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+               <div>
+                  <p className="text-xs text-slate-500">Unidade</p>
+                  <p className="font-medium">{selectedInfraction?.unit}</p>
+               </div>
+               <div>
+                  <p className="text-xs text-slate-500">Data</p>
+                  <p className="font-medium">{selectedInfraction?.date}</p>
+               </div>
+               <div className="col-span-2">
+                  <p className="text-xs text-slate-500">Tipo</p>
+                  <p className="font-medium">{selectedInfraction?.type}</p>
+               </div>
+               <div>
+                  <p className="text-xs text-slate-500">Valor Multa</p>
+                  <p className="font-medium text-rose-600">R$ {selectedInfraction?.fine.toFixed(2)}</p>
+               </div>
+               <div>
+                  <p className="text-xs text-slate-500">Status</p>
+                  <StatusBadge status={selectedInfraction?.status} />
+               </div>
+            </div>
+            
+            <div className="pt-4 border-t border-slate-100">
+               <p className="text-xs font-bold text-slate-700 mb-2">Alterar Status</p>
+               <div className="flex flex-wrap gap-2">
+                  <button onClick={() => handleStatusChange('defense_pending')} className="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded text-xs hover:bg-amber-100">Aguardando Defesa</button>
+                  <button onClick={() => handleStatusChange('fined')} className="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded text-xs hover:bg-rose-100">Multado</button>
+                  <button onClick={() => handleStatusChange('appeal')} className="px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded text-xs hover:bg-purple-100">Em Recurso</button>
+               </div>
+            </div>
+         </div>
+      </Modal>
+    </div>
+  );
+};
+
+const DocumentsView = ({ currentCondoId, data, onUpdate }: { currentCondoId: number, data: typeof MOCK_DOCUMENTS, onUpdate: (d: any) => void }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newDoc, setNewDoc] = useState({ title: '', category: 'Legal', expiry: '', file: null as File | null, isPermanent: false });
+  const [newDoc, setNewDoc] = useState({ title: '', category: '', expiry: '', permanent: false, fileData: null as string | null, fileName: '' });
   const [viewingDoc, setViewingDoc] = useState<any>(null);
+  
+  // New State for Delete Confirmation
+  const [docToDelete, setDocToDelete] = useState<number | null>(null);
 
-  // Recalculate status of existing documents when component mounts or data updates
-  useEffect(() => {
-     // Helper to calculate status
-     const calculateStatus = (expiry: string, status: string) => {
-        if (status === 'permanent') return 'permanent'; // Do not touch permanent docs
-        if (!expiry) return 'permanent'; // Safety fallback
-        
-        const now = new Date();
-        const expDate = new Date(expiry);
-        const warningDate = new Date();
-        warningDate.setDate(now.getDate() + 30); // 30 days notice
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-        if (expDate < now) return 'expired';
-        if (expDate <= warningDate) return 'expiring_soon';
-        return 'valid';
-     };
+  // Filter for current condo
+  const displayData = data.filter(d => d.condoId === currentCondoId);
 
-     // Check if any status needs update
-     let needsUpdate = false;
-     const updatedData = data.map(doc => {
-         const calculated = calculateStatus(doc.expiry, doc.status);
-         if (doc.status !== calculated) {
-             needsUpdate = true;
-             return { ...doc, status: calculated };
-         }
-         return doc;
-     });
+  // Calculate dynamic status logic
+  const processedData = displayData.map(doc => {
+    let status = 'valid';
+    if (doc.permanent) {
+      status = 'permanent';
+    } else if (doc.validUntil) {
+      const today = new Date();
+      const validDate = new Date(doc.validUntil);
+      const diffTime = validDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays < 0) status = 'expired';
+      else if (diffDays <= 30) status = 'expiring_soon';
+      else status = 'valid';
+    }
+    return { ...doc, computedStatus: status };
+  });
 
-     if (needsUpdate) {
-         onUpdate(updatedData);
-     }
-  }, [data]); // Depend on data to re-evaluate
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setNewDoc({ ...newDoc, file: e.target.files[0] });
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setNewDoc({ ...newDoc, fileData: reader.result as string, fileName: file.name });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleSave = () => {
-    if (!newDoc.title || !newDoc.file) return;
-
-    // Convert file to base64 for preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
-      const fileType = newDoc.file?.type;
-      
-      let status = 'valid';
-      if (newDoc.isPermanent) {
-          status = 'permanent';
-      } else if (newDoc.expiry) {
-          const now = new Date();
-          const expDate = new Date(newDoc.expiry);
-          const warningDate = new Date();
-          warningDate.setDate(now.getDate() + 30);
-
-          if (expDate < now) status = 'expired';
-          else if (expDate <= warningDate) status = 'expiring_soon';
-      }
-
-      const newItem = {
-        id: Date.now(),
-        title: newDoc.title,
-        category: newDoc.category,
-        date: new Date().toISOString().split('T')[0],
-        expiry: newDoc.isPermanent ? '' : newDoc.expiry,
-        status: status,
-        fileData: base64String,
-        fileType: fileType
-      };
-
-      onUpdate([...data, newItem]);
-      setIsModalOpen(false);
-      setNewDoc({ title: '', category: 'Legal', expiry: '', file: null, isPermanent: false });
-    };
-    reader.readAsDataURL(newDoc.file);
+    onUpdate([...data, { 
+      id: Date.now(),
+      condoId: currentCondoId,
+      title: newDoc.title, 
+      category: newDoc.category, 
+      issueDate: new Date().toISOString().split('T')[0],
+      validUntil: newDoc.permanent ? '' : newDoc.expiry,
+      permanent: newDoc.permanent,
+      fileData: newDoc.fileData // Store the file
+    }]);
+    setIsModalOpen(false);
+    setNewDoc({ title: '', category: '', expiry: '', permanent: false, fileData: null, fileName: '' }); // Reset
   };
 
-  const handleDelete = (id: number) => {
-    onUpdate(data.filter(d => d.id !== id));
+  const handleDeleteClick = (id: number) => {
+    setDocToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (docToDelete) {
+        onUpdate(data.filter(d => d.id !== docToDelete));
+        setDocToDelete(null);
+    }
   };
 
   return (
@@ -1234,1441 +1193,710 @@ const DocumentsView = ({
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.map((doc) => (
-          <div key={doc.id} className="bg-white p-5 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-start mb-3">
-              <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600">
-                <FileText size={24} />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {processedData.length > 0 ? processedData.map((doc) => (
+          <div key={doc.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <FileText size={20} />
               </div>
-              <StatusBadge status={doc.status} />
+              <StatusBadge status={doc.computedStatus} />
             </div>
             <h3 className="font-semibold text-slate-800 mb-1">{doc.title}</h3>
-            <p className="text-sm text-slate-500 mb-4">{doc.category}</p>
+            <p className="text-xs text-slate-500 mb-4">{doc.category}</p>
             
-            <div className="text-xs text-slate-400 space-y-1 mb-4">
-              <p>Emissão: {new Date(doc.date).toLocaleDateString('pt-BR')}</p>
-              {doc.expiry && <p>Validade: {new Date(doc.expiry).toLocaleDateString('pt-BR')}</p>}
-              {doc.status === 'permanent' && <p>Validade: Indeterminada</p>}
+            <div className="text-xs text-slate-600 space-y-1 mb-4">
+              <p>Emissão: {new Date(doc.issueDate).toLocaleDateString('pt-BR')}</p>
+              {!doc.permanent && <p>Validade: {new Date(doc.validUntil).toLocaleDateString('pt-BR')}</p>}
             </div>
 
-            <div className="flex gap-2 border-t border-slate-100 pt-3">
+            <div className="flex gap-2 pt-4 border-t border-slate-100">
               <button 
+                type="button"
                 onClick={() => setViewingDoc(doc)}
-                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-indigo-600 py-1.5 hover:bg-indigo-50 rounded-md transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-indigo-600 py-2 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 <Eye size={14} /> Visualizar
               </button>
               <button 
-                onClick={() => handleDelete(doc.id)}
-                className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-slate-600 hover:text-red-600 py-1.5 hover:bg-red-50 rounded-md transition-colors"
+                type="button"
+                onClick={() => handleDeleteClick(doc.id)}
+                className="flex-1 flex items-center justify-center gap-2 text-xs font-medium text-slate-600 hover:text-red-600 py-2 hover:bg-slate-50 rounded-lg transition-colors"
               >
                 <Trash2 size={14} /> Excluir
               </button>
             </div>
           </div>
-        ))}
-      </div>
-
-       {isModalOpen && (
-        <Modal title="Upload de Documento" onClose={() => setIsModalOpen(false)}>
-           <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Título do Documento</label>
-               <input 
-                 type="text" 
-                 value={newDoc.title}
-                 onChange={e => setNewDoc({...newDoc, title: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                 placeholder="Ex: Alvará de Funcionamento" 
-               />
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
-                <select 
-                   value={newDoc.category}
-                   onChange={e => setNewDoc({...newDoc, category: e.target.value})}
-                   className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                >
-                  <option value="Legal">Legal</option>
-                  <option value="Seguros">Seguros</option>
-                  <option value="Manutenção">Manutenção</option>
-                  <option value="Plantas">Plantas</option>
-                  <option value="Financeiro">Financeiro</option>
-                </select>
-             </div>
-             <div>
-                <div className="flex items-center gap-2 mb-2">
-                   <input 
-                      type="checkbox" 
-                      id="isPermanent"
-                      checked={newDoc.isPermanent}
-                      onChange={e => setNewDoc({...newDoc, isPermanent: e.target.checked})}
-                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                   />
-                   <label htmlFor="isPermanent" className="text-sm font-medium text-slate-700">Documento Permanente (Sem Validade)</label>
-                </div>
-                {!newDoc.isPermanent && (
-                   <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Validade</label>
-                     <input 
-                        type="date" 
-                        value={newDoc.expiry}
-                        onChange={e => setNewDoc({...newDoc, expiry: e.target.value})}
-                        className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                     />
-                   </div>
-                )}
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Arquivo</label>
-                <input 
-                  type="file" 
-                  onChange={handleFileChange}
-                  className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-                />
-             </div>
-             <button 
-               onClick={handleSave}
-               disabled={!newDoc.file || !newDoc.title}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               Salvar Documento
-             </button>
-           </div>
-        </Modal>
-      )}
-
-      {viewingDoc && (
-        <Modal title={viewingDoc.title} onClose={() => setViewingDoc(null)}>
-           <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg min-h-[300px]">
-              {viewingDoc.fileData ? (
-                 viewingDoc.fileType?.startsWith('image/') ? (
-                    <img src={viewingDoc.fileData} alt={viewingDoc.title} className="max-w-full max-h-[500px] object-contain rounded-lg shadow-sm" />
-                 ) : (
-                    <iframe src={viewingDoc.fileData} className="w-full h-[500px] border-0 rounded-lg" title={viewingDoc.title}></iframe>
-                 )
-              ) : (
-                 <div className="text-center">
-                    <FileText size={48} className="text-slate-300 mx-auto mb-2" />
-                    <p className="text-slate-500 font-medium">Pré-visualização simulada do arquivo</p>
-                    <p className="text-xs text-slate-400 mt-1">Nenhum arquivo real carregado neste mock.</p>
-                 </div>
-              )}
-           </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-const InfractionsView = ({ 
-  data, 
-  onUpdate,
-  regimentRules,
-  onUpdateRegiment
-}: { 
-  data: typeof MOCK_INFRACTIONS, 
-  onUpdate: (data: typeof MOCK_INFRACTIONS) => void,
-  regimentRules: typeof MOCK_REGIMENT_RULES,
-  onUpdateRegiment: (data: typeof MOCK_REGIMENT_RULES) => void
-}) => {
-  const [activeTab, setActiveTab] = useState<'occurrences' | 'rules'>('occurrences');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedInfraction, setSelectedInfraction] = useState<any>(null);
-  const [newInfraction, setNewInfraction] = useState({ unit: '', ruleId: '', date: '', description: '', amount: 0, recurrence: 1 });
-  const [manualRecurrence, setManualRecurrence] = useState(false);
-  
-  // Rule State
-  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
-  const [newRule, setNewRule] = useState({ article: '', description: '', severity: 'Leve', defaultAmount: 0 });
-
-  const getRecurrenceCount = (unit: string, type: string) => {
-    if (!unit || !type) return 1;
-    // Count previous infractions of same type for this unit
-    const count = data.filter(i => i.unit === unit && i.type === type).length;
-    return count + 1; // Current one is next
-  };
-
-  const handleStatusChange = (id: number, newStatus: string) => {
-    const updatedData = data.map(i => i.id === id ? { ...i, status: newStatus } : i);
-    onUpdate(updatedData);
-    // Update the selected item as well so the modal updates immediately
-    if (selectedInfraction && selectedInfraction.id === id) {
-        setSelectedInfraction({ ...selectedInfraction, status: newStatus });
-    }
-  };
-
-  const handleUnitOrTypeChange = (unit: string, ruleId: string) => {
-    const rule = regimentRules.find(r => r.id.toString() === ruleId);
-    const type = rule ? rule.description : '';
-    
-    // Update state
-    const currentUnit = unit || newInfraction.unit;
-    const currentRuleId = ruleId || newInfraction.ruleId;
-    
-    let recurrence = 1;
-    let description = newInfraction.description;
-    let amount = newInfraction.amount;
-
-    if (rule) {
-        description = rule.description;
-        amount = rule.defaultAmount;
-    }
-
-    if (currentUnit && rule) {
-       recurrence = getRecurrenceCount(currentUnit, rule.description);
-    }
-    
-    setNewInfraction({ 
-        ...newInfraction, 
-        unit: currentUnit, 
-        ruleId: currentRuleId, 
-        description, 
-        amount, 
-        recurrence: manualRecurrence ? newInfraction.recurrence : recurrence 
-    });
-  };
-
-  const handleSaveInfraction = () => {
-    onUpdate([...data, {
-      id: Date.now(),
-      unit: newInfraction.unit,
-      type: newInfraction.description,
-      date: newInfraction.date,
-      amount: newInfraction.amount,
-      status: 'awaiting_defense',
-      recurrence: newInfraction.recurrence
-    }]);
-    setIsModalOpen(false);
-    setNewInfraction({ unit: '', ruleId: '', date: '', description: '', amount: 0, recurrence: 1 });
-    setManualRecurrence(false);
-  };
-
-  const handleSaveRule = () => {
-    onUpdateRegiment([...regimentRules, {
-      id: Date.now(),
-      ...newRule
-    }]);
-    setIsRuleModalOpen(false);
-    setNewRule({ article: '', description: '', severity: 'Leve', defaultAmount: 0 });
-  };
-
-  const handleDeleteRule = (id: number) => {
-     onUpdateRegiment(regimentRules.filter(r => r.id !== id));
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Infrações e Regulação</h2>
-        {activeTab === 'occurrences' ? (
-           <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-             <Plus size={18} /> Registrar Infração
-           </button>
-        ) : (
-           <button onClick={() => setIsRuleModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-             <Plus size={18} /> Nova Regra
-           </button>
+        )) : (
+          <div className="col-span-full text-center py-10 text-slate-500 bg-white rounded-xl border border-slate-200 border-dashed">
+            Nenhum documento cadastrado.
+          </div>
         )}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="border-b border-slate-100 p-4">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setActiveTab('occurrences')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'occurrences' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Ocorrências
-            </button>
-            <button 
-               onClick={() => setActiveTab('rules')}
-               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'rules' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Regimento Interno
-            </button>
+      {/* Upload Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Upload de Documento">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Título do Documento</label>
+            <input 
+              type="text" 
+              value={newDoc.title}
+              onChange={e => setNewDoc({...newDoc, title: e.target.value})}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm bg-white"
+              placeholder="Ex: Alvará de Funcionamento"
+            />
           </div>
-        </div>
-        
-        {activeTab === 'occurrences' ? (
-          <table className="w-full text-sm text-left">
-            <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-              <tr>
-                <th className="p-4 pl-6 font-medium">Unidade</th>
-                <th className="p-4 font-medium">Tipo de Infração</th>
-                <th className="p-4 font-medium">Data</th>
-                <th className="p-4 font-medium">Reincidência</th>
-                <th className="p-4 font-medium">Valor Multa</th>
-                <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right pr-6">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {data.map((i) => (
-                <tr key={i.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4 pl-6 font-medium text-slate-800">Unit {i.unit}</td>
-                  <td className="p-4 text-slate-600">{i.type}</td>
-                  <td className="p-4 text-slate-500">{new Date(i.date).toLocaleDateString('pt-BR')}</td>
-                  <td className="p-4">
-                     <span className={`px-2 py-0.5 rounded text-xs font-semibold ${i.recurrence > 1 ? 'bg-red-50 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
-                        {i.recurrence}ª vez
-                     </span>
-                  </td>
-                  <td className="p-4 font-medium text-slate-700">R$ {i.amount.toFixed(2)}</td>
-                  <td className="p-4"><StatusBadge status={i.status} /></td>
-                  <td className="p-4 text-right pr-6">
-                    <button 
-                      onClick={() => setSelectedInfraction(i)} 
-                      className="text-indigo-600 hover:text-indigo-800 font-medium text-xs px-3 py-1.5 rounded-md hover:bg-indigo-50"
-                    >
-                      Detalhes
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <table className="w-full text-sm text-left">
-             <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-              <tr>
-                <th className="p-4 pl-6 font-medium">Artigo</th>
-                <th className="p-4 font-medium">Descrição</th>
-                <th className="p-4 font-medium">Gravidade</th>
-                <th className="p-4 font-medium">Valor Padrão</th>
-                <th className="p-4 font-medium text-right pr-6">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-               {regimentRules.map((rule) => (
-                 <tr key={rule.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 pl-6 font-medium text-slate-800">{rule.article}</td>
-                    <td className="p-4 text-slate-600">{rule.description}</td>
-                    <td className="p-4"><StatusBadge status={rule.severity === 'Grave' ? 'high' : rule.severity === 'Média' ? 'medium' : 'low'} /></td>
-                    <td className="p-4 text-slate-700">R$ {rule.defaultAmount.toFixed(2)}</td>
-                    <td className="p-4 text-right pr-6">
-                       <button onClick={() => handleDeleteRule(rule.id)} className="text-red-600 hover:text-red-800 font-medium">Excluir</button>
-                    </td>
-                 </tr>
-               ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {selectedInfraction && (
-        <Modal title="Detalhes da Infração" onClose={() => setSelectedInfraction(null)}>
-          <div className="space-y-4">
-             <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-               <div className="flex justify-between items-center mb-2">
-                 <span className="text-sm font-semibold text-slate-500">Unidade</span>
-                 <span className="text-lg font-bold text-slate-800">{selectedInfraction.unit}</span>
-               </div>
-               <div className="flex justify-between items-center mb-2">
-                 <span className="text-sm font-semibold text-slate-500">Tipo</span>
-                 <span className="text-sm font-medium text-slate-700">{selectedInfraction.type}</span>
-               </div>
-               <div className="flex justify-between items-center mb-2">
-                 <span className="text-sm font-semibold text-slate-500">Data</span>
-                 <span className="text-sm font-medium text-slate-700">{new Date(selectedInfraction.date).toLocaleDateString('pt-BR')}</span>
-               </div>
-               <div className="flex justify-between items-center mb-2">
-                 <span className="text-sm font-semibold text-slate-500">Reincidência</span>
-                 <span className="text-sm font-bold text-red-600">{selectedInfraction.recurrence}ª Ocorrência</span>
-               </div>
-               <div className="flex justify-between items-center">
-                 <span className="text-sm font-semibold text-slate-500">Valor Multa</span>
-                 <span className="text-lg font-bold text-slate-800">R$ {selectedInfraction.amount.toFixed(2)}</span>
-               </div>
-             </div>
-             <div>
-                <h4 className="font-semibold text-slate-800 mb-2">Status do Processo</h4>
-                <div className="flex items-center gap-2 mb-4">
-                   <StatusBadge status={selectedInfraction.status} />
-                   <span className="text-sm text-slate-500">
-                      {selectedInfraction.status === 'awaiting_defense' ? '- Aguardando defesa do morador (Prazo: 5 dias)' : ''}
-                   </span>
-                </div>
-                
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Alterar Status</p>
-                    <div className="flex flex-wrap gap-2">
-                        <button 
-                            onClick={() => handleStatusChange(selectedInfraction.id, 'awaiting_defense')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${selectedInfraction.status === 'awaiting_defense' ? 'bg-amber-100 text-amber-700 border-amber-200 ring-1 ring-amber-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                        >
-                            Aguardando Defesa
-                        </button>
-                        <button 
-                            onClick={() => handleStatusChange(selectedInfraction.id, 'fined')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${selectedInfraction.status === 'fined' ? 'bg-red-100 text-red-700 border-red-200 ring-1 ring-red-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                        >
-                            Multado
-                        </button>
-                        <button 
-                            onClick={() => handleStatusChange(selectedInfraction.id, 'appealing')}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${selectedInfraction.status === 'appealing' ? 'bg-purple-100 text-purple-700 border-purple-200 ring-1 ring-purple-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
-                        >
-                            Em Recurso
-                        </button>
-                    </div>
-                </div>
-             </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">Categoria</label>
+            <input 
+              type="text" 
+              value={newDoc.category}
+              onChange={e => setNewDoc({...newDoc, category: e.target.value})}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm bg-white"
+              placeholder="Legal, Manutenção, Plantas..."
+            />
           </div>
-        </Modal>
-      )}
+          
+          <label className="flex items-center gap-2 cursor-pointer py-1">
+             <input type="checkbox" checked={newDoc.permanent} onChange={e => setNewDoc({...newDoc, permanent: e.target.checked})} className="rounded text-indigo-600 focus:ring-indigo-500" />
+             <span className="text-sm text-slate-700 font-medium">Documento Permanente</span>
+          </label>
 
-      {isModalOpen && (
-        <Modal title="Registrar Infração" onClose={() => setIsModalOpen(false)}>
-           <div className="space-y-4">
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Unidade</label>
-                   <input 
-                     type="text" 
-                     value={newInfraction.unit}
-                     onChange={e => handleUnitOrTypeChange(e.target.value, newInfraction.ruleId)}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                     placeholder="Ex: 102"
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Data</label>
-                   <input 
-                     type="date" 
-                     value={newInfraction.date}
-                     onChange={e => setNewInfraction({...newInfraction, date: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo de Infração (Regimento)</label>
-                <select 
-                   value={newInfraction.ruleId}
-                   onChange={e => handleUnitOrTypeChange(newInfraction.unit, e.target.value)}
-                   className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                >
-                   <option value="">Selecione...</option>
-                   {regimentRules.map(r => (
-                      <option key={r.id} value={r.id}>{r.article} - {r.description}</option>
-                   ))}
-                </select>
-             </div>
-             
-             {newInfraction.unit && newInfraction.description && (
-                <div className={`p-3 rounded-lg border flex items-start gap-3 ${newInfraction.recurrence > 1 ? 'bg-red-50 border-red-100 text-red-700' : 'bg-blue-50 border-blue-100 text-blue-700'}`}>
-                   <AlertCircle size={20} className="shrink-0 mt-0.5" />
-                   <div>
-                      <p className="font-semibold text-sm">
-                         {newInfraction.recurrence > 1 ? 'Reincidência Detectada!' : 'Primeira Ocorrência'}
-                      </p>
-                      <p className="text-xs mt-1">
-                         Esta é a {newInfraction.recurrence}ª vez que esta unidade comete esta infração.
-                      </p>
-                   </div>
-                </div>
-             )}
-
-             <div className="flex items-center gap-2 py-2">
-                <input 
-                   type="checkbox" 
-                   id="manualRecurrence"
-                   checked={manualRecurrence}
-                   onChange={(e) => {
-                      setManualRecurrence(e.target.checked);
-                      if (e.target.checked) {
-                         // If checked, allow manual edit (or increment) - for simplicity, just increment visual
-                         setNewInfraction({...newInfraction, recurrence: newInfraction.recurrence + 1});
-                      } else {
-                         // Reset to calc
-                         handleUnitOrTypeChange(newInfraction.unit, newInfraction.ruleId);
-                      }
-                   }}
-                   className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                />
-                <label htmlFor="manualRecurrence" className="text-sm text-slate-600">Marcar como Reincidente Manualmente (Forçar +1)</label>
-             </div>
-
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Valor da Multa</label>
-                <input 
-                  type="number" 
-                  value={newInfraction.amount}
-                  onChange={e => setNewInfraction({...newInfraction, amount: parseFloat(e.target.value)})}
-                  className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                />
-             </div>
-             <button 
-               onClick={handleSaveInfraction}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-             >
-               Registrar
-             </button>
-           </div>
-        </Modal>
-      )}
-
-      {isRuleModalOpen && (
-         <Modal title="Nova Regra" onClose={() => setIsRuleModalOpen(false)}>
-            <div className="space-y-4">
-               <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Artigo</label>
-                  <input 
-                     type="text" 
-                     value={newRule.article}
-                     onChange={e => setNewRule({...newRule, article: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                     placeholder="Ex: Art. 10"
-                  />
-               </div>
-               <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Descrição</label>
-                  <input 
-                     type="text" 
-                     value={newRule.description}
-                     onChange={e => setNewRule({...newRule, description: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                     placeholder="Ex: Proibido animais na piscina"
-                  />
-               </div>
-               <div className="grid grid-cols-2 gap-4">
-                  <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Gravidade</label>
-                     <select 
-                        value={newRule.severity}
-                        onChange={e => setNewRule({...newRule, severity: e.target.value})}
-                        className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                     >
-                        <option>Leve</option>
-                        <option>Média</option>
-                        <option>Grave</option>
-                     </select>
-                  </div>
-                  <div>
-                     <label className="block text-sm font-medium text-slate-700 mb-1">Valor Padrão</label>
-                     <input 
-                        type="number" 
-                        value={newRule.defaultAmount}
-                        onChange={e => setNewRule({...newRule, defaultAmount: parseFloat(e.target.value)})}
-                        className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                     />
-                  </div>
-               </div>
-               <button 
-                  onClick={handleSaveRule}
-                  className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-               >
-                  Salvar Regra
-               </button>
-            </div>
-         </Modal>
-      )}
-    </div>
-  );
-};
-
-const MaintenanceView = ({ 
-  data, 
-  onUpdate 
-}: { 
-  data: typeof MOCK_MAINTENANCE, 
-  onUpdate: (data: typeof MOCK_MAINTENANCE) => void 
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ 
-    item: '', 
-    date: '', 
-    status: 'pending', 
-    type: 'Preventiva', 
-    priority: 'medium', 
-    assignee: '', 
-    validUntil: '' 
-  });
-
-  const handleOpenModal = (item?: any) => {
-    if (item) {
-      setEditingItem(item);
-      setFormData({ 
-        item: item.item, 
-        date: item.date, 
-        status: item.status, 
-        type: item.type, 
-        priority: item.priority, 
-        assignee: item.assignee, 
-        validUntil: item.validUntil 
-      });
-    } else {
-      setEditingItem(null);
-      setFormData({ 
-        item: '', 
-        date: '', 
-        status: 'pending', 
-        type: 'Preventiva', 
-        priority: 'medium', 
-        assignee: '', 
-        validUntil: '' 
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const handleSave = () => {
-    if (editingItem) {
-      onUpdate(data.map(m => m.id === editingItem.id ? { ...m, ...formData } : m));
-    } else {
-      onUpdate([...data, { id: Date.now(), ...formData }]);
-    }
-    setIsModalOpen(false);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Manutenção</h2>
-        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-          <Plus size={18} /> Nova Manutenção
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-            <tr>
-              <th className="p-4 pl-6 font-medium">Item</th>
-              <th className="p-4 font-medium">Tipo</th>
-              <th className="p-4 font-medium">Data</th>
-              <th className="p-4 font-medium">Prioridade</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium">Responsável</th>
-              <th className="p-4 font-medium text-right pr-6">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {data.map((m) => (
-              <tr key={m.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 pl-6 font-medium text-slate-800">{m.item}</td>
-                <td className="p-4 text-slate-600">{m.type}</td>
-                <td className="p-4 text-slate-600">{new Date(m.date).toLocaleDateString('pt-BR')}</td>
-                <td className="p-4"><StatusBadge status={m.priority} /></td>
-                <td className="p-4"><StatusBadge status={m.status} /></td>
-                <td className="p-4 text-slate-600">{m.assignee}</td>
-                <td className="p-4 text-right pr-6">
-                  <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {isModalOpen && (
-        <Modal title={editingItem ? "Editar Manutenção" : "Nova Manutenção"} onClose={() => setIsModalOpen(false)}>
-          <div className="space-y-4">
+          {!newDoc.permanent && (
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Item / Equipamento</label>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Data de Validade</label>
               <input 
-                type="text" 
-                value={formData.item} 
-                onChange={(e) => setFormData({ ...formData, item: e.target.value })}
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+                type="date" 
+                value={newDoc.expiry}
+                onChange={e => setNewDoc({...newDoc, expiry: e.target.value})}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 text-sm bg-white"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
-                <select 
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
-                >
-                  <option>Preventiva</option>
-                  <option>Corretiva</option>
-                  <option>Rotina</option>
-                </select>
-              </div>
-              <div>
-                 <label className="block text-sm font-medium text-slate-700 mb-1">Prioridade</label>
-                 <select 
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
-                 >
-                    <option value="low">Baixa</option>
-                    <option value="medium">Média</option>
-                    <option value="high">Alta</option>
-                 </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-               <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Data Programada</label>
-                  <input 
-                     type="date" 
-                     value={formData.date} 
-                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                     className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-                  />
-               </div>
-               <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                  <select 
-                     value={formData.status}
-                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                     className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
-                  >
-                     <option value="pending">Pendente</option>
-                     <option value="scheduled">Agendado</option>
-                     <option value="completed">Concluído</option>
-                     <option value="cancelled">Cancelado</option>
-                  </select>
-               </div>
-            </div>
-            <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Responsável / Fornecedor</label>
-               <input 
-                  type="text" 
-                  value={formData.assignee} 
-                  onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-               />
-            </div>
-            
-            <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2">
-               Salvar
-            </button>
+          )}
+
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileSelect} 
+            className="hidden" 
+          />
+
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center hover:bg-slate-50 transition-colors cursor-pointer"
+          >
+             <UploadCloud size={24} className="mx-auto text-slate-400 mb-2" />
+             <p className="text-sm text-slate-500">{newDoc.fileName || 'Clique para selecionar o arquivo'}</p>
+             <p className="text-xs text-slate-400 mt-1">PDF, JPG ou PNG (Max 10MB)</p>
           </div>
-        </Modal>
-      )}
+
+          <button onClick={handleSave} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg">
+            Salvar Documento
+          </button>
+        </div>
+      </Modal>
+
+      {/* View Document Modal */}
+      <Modal isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} title={viewingDoc?.title || "Visualizar Documento"}>
+        <div className="flex flex-col items-center justify-center min-h-[300px] bg-slate-100 rounded-lg border border-slate-200">
+          {viewingDoc?.fileData ? (
+             viewingDoc.fileData.startsWith('data:image') ? (
+               <img src={viewingDoc.fileData} alt={viewingDoc.title} className="max-w-full max-h-[500px] object-contain" />
+             ) : (
+               <iframe src={viewingDoc.fileData} className="w-full h-[500px]" title="Document Viewer"></iframe>
+             )
+          ) : (
+             <div className="text-center p-8">
+               <FileText size={48} className="mx-auto text-slate-300 mb-4" />
+               <p className="text-slate-500 font-medium">Visualização não disponível</p>
+               <p className="text-xs text-slate-400 mt-2">Este é um documento simulado ou o arquivo original não foi carregado.</p>
+             </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal 
+        isOpen={!!docToDelete} 
+        onClose={() => setDocToDelete(null)} 
+        title="Confirmar Exclusão"
+      >
+        <div className="space-y-4">
+            <p className="text-slate-600">
+                Tem certeza que deseja excluir o documento <strong>{data.find(d => d.id === docToDelete)?.title}</strong>?
+                <br/>Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-3 mt-4">
+                <button 
+                    onClick={() => setDocToDelete(null)}
+                    className="px-4 py-2 text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-medium text-sm"
+                >
+                    Cancelar
+                </button>
+                <button 
+                    onClick={confirmDelete}
+                    className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors font-medium text-sm shadow-sm"
+                >
+                    Sim, Excluir
+                </button>
+            </div>
+        </div>
+      </Modal>
     </div>
   );
 };
 
-const SuppliersView = ({ 
-  data, 
-  onUpdate 
-}: { 
-  data: typeof MOCK_SUPPLIERS, 
-  onUpdate: (data: typeof MOCK_SUPPLIERS) => void 
-}) => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [formData, setFormData] = useState({ 
-    name: '', 
-    category: '', 
-    contact: '', 
-    contractStart: '', 
-    contractEnd: '', 
-    status: 'active', 
-    service: '' 
-  });
-
-  const handleOpenModal = (item?: any) => {
-    if (item) {
-      setEditingItem(item);
-      setFormData({ ...item });
-    } else {
-      setEditingItem(null);
-      setFormData({ 
-        name: '', 
-        category: '', 
-        contact: '', 
-        contractStart: '', 
-        contractEnd: '', 
-        status: 'active', 
-        service: '' 
-      });
-    }
-    setIsModalOpen(true);
-  };
-
-  const handleSave = () => {
-    if (editingItem) {
-      onUpdate(data.map(s => s.id === editingItem.id ? { ...s, ...formData } : s));
-    } else {
-      onUpdate([...data, { id: Date.now(), ...formData }]);
-    }
-    setIsModalOpen(false);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Fornecedores</h2>
-        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-          <Plus size={18} /> Nova Fornecedor
-        </button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {data.map((s) => (
-          <div key={s.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-             <div className="flex justify-between items-start mb-4">
-                <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600">
-                   <Truck size={24} />
-                </div>
-                <StatusBadge status={s.status} />
-             </div>
-             <h3 className="font-bold text-lg text-slate-800 mb-1">{s.name}</h3>
-             <p className="text-sm text-slate-500 mb-4">{s.category} • {s.service}</p>
-             
-             <div className="space-y-2 text-sm text-slate-600 mb-6">
-                <div className="flex items-center gap-2">
-                   <span className="text-slate-400">Contato:</span>
-                   <span className="font-medium">{s.contact}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                   <span className="text-slate-400">Contrato:</span>
-                   <span className="font-medium">
-                      {new Date(s.contractStart).toLocaleDateString('pt-BR')} até {new Date(s.contractEnd).toLocaleDateString('pt-BR')}
-                   </span>
-                </div>
-             </div>
-
-             <button 
-               onClick={() => handleOpenModal(s)}
-               className="w-full py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors"
-             >
-               Editar Detalhes
-             </button>
-          </div>
-        ))}
-      </div>
-
-      {isModalOpen && (
-        <Modal title={editingItem ? "Editar Fornecedor" : "Novo Fornecedor"} onClose={() => setIsModalOpen(false)}>
-          <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Empresa</label>
-               <input 
-                  type="text" 
-                  value={formData.name} 
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
-                   <input 
-                      type="text" 
-                      value={formData.category} 
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Serviço Principal</label>
-                   <input 
-                      type="text" 
-                      value={formData.service} 
-                      onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-             </div>
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Contato (Telefone/Email)</label>
-               <input 
-                  type="text" 
-                  value={formData.contact} 
-                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Início Contrato</label>
-                   <input 
-                      type="date" 
-                      value={formData.contractStart} 
-                      onChange={(e) => setFormData({ ...formData, contractStart: e.target.value })}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Fim Contrato</label>
-                   <input 
-                      type="date" 
-                      value={formData.contractEnd} 
-                      onChange={(e) => setFormData({ ...formData, contractEnd: e.target.value })}
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                <select 
-                   value={formData.status}
-                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                   className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
-                >
-                   <option value="active">Ativo</option>
-                   <option value="inactive">Inativo</option>
-                </select>
-             </div>
-             <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2">
-                Salvar
-             </button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-const SettingsView = ({
-  usersData,
-  onUpdateUsers,
-  tenantData,
-  onUpdateTenant
-}: {
-  usersData: typeof MOCK_SYSTEM_USERS,
-  onUpdateUsers: (data: typeof MOCK_SYSTEM_USERS) => void,
-  tenantData: typeof TENANTS,
-  onUpdateTenant: (data: typeof TENANTS) => void
-}) => {
-  const [activeTab, setActiveTab] = useState<'general' | 'users' | 'notifications'>('general');
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+const SettingsView = ({ currentCondoId, data, users, condos, onUpdate, onUpdateUsers }: any) => {
+  const [activeTab, setActiveTab] = useState('condo');
   const [editingUser, setEditingUser] = useState<any>(null);
-  const [userForm, setUserForm] = useState({ name: '', email: '', role: 'Porteiro', password: '' });
   
-  // Tenant State (simulated)
-  const [tenantForm, setTenantForm] = useState({ ...tenantData[0] });
+  const condo = data.find((c: any) => c.id === currentCondoId) || {};
 
-  const handleOpenUserModal = (user?: any) => {
-    if (user) {
-      setEditingUser(user);
-      setUserForm({ name: user.name, email: user.email, role: user.role, password: '' });
-    } else {
-      setEditingUser(null);
-      setUserForm({ name: '', email: '', role: 'Porteiro', password: '' });
-    }
-    setIsUserModalOpen(true);
-  };
-
-  const handleSaveUser = () => {
-    if (editingUser) {
-      onUpdateUsers(usersData.map(u => u.id === editingUser.id ? { ...u, ...userForm, status: u.status } : u));
-    } else {
-      onUpdateUsers([...usersData, { id: Date.now(), ...userForm, status: 'active' }]);
-    }
-    setIsUserModalOpen(false);
+  const handleUpdateCondo = (field: string, value: string) => {
+    onUpdate(data.map((c: any) => c.id === currentCondoId ? { ...c, [field]: value } : c));
   };
 
   const handleToggleStatus = (id: number) => {
-    onUpdateUsers(usersData.map(u => 
-      u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u
-    ));
+     onUpdateUsers(users.map((u: any) => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u));
   };
 
-  const handleSaveTenant = () => {
-     onUpdateTenant(tenantData.map(t => t.id === tenantForm.id ? tenantForm : t));
-     alert('Dados do condomínio atualizados com sucesso!');
-  }
+  const handleSaveUser = () => {
+    if (editingUser.id) {
+       onUpdateUsers(users.map((u: any) => u.id === editingUser.id ? editingUser : u));
+    } else {
+       onUpdateUsers([...users, { ...editingUser, id: Date.now(), status: 'active' }]);
+    }
+    setEditingUser(null);
+  };
+
+  const handleCondoPermissionChange = (condoId: number) => {
+     const currentPermissions = editingUser.permittedCondos || [];
+     let newPermissions;
+     if (currentPermissions.includes(condoId)) {
+        newPermissions = currentPermissions.filter((id: number) => id !== condoId);
+     } else {
+        newPermissions = [...currentPermissions, condoId];
+     }
+     setEditingUser({ ...editingUser, permittedCondos: newPermissions });
+  };
 
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
       
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-        <div className="flex border-b border-slate-100 p-4 gap-2 overflow-x-auto">
-          <button 
-            onClick={() => setActiveTab('general')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'general' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900'}`}
-          >
-            Dados do Condomínio
-          </button>
-          <button 
-            onClick={() => setActiveTab('users')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'users' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900'}`}
-          >
-            Usuários e Permissões
-          </button>
-          <button 
-            onClick={() => setActiveTab('notifications')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${activeTab === 'notifications' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900'}`}
-          >
-            Notificações
-          </button>
-        </div>
+      <Card>
+         <div className="flex gap-4 border-b border-slate-100 mb-6">
+            <button onClick={() => setActiveTab('condo')} className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'condo' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>Dados do Condomínio</button>
+            <button onClick={() => setActiveTab('users')} className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'users' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>Usuários e Permissões</button>
+            <button onClick={() => setActiveTab('notifications')} className={`pb-3 px-2 text-sm font-medium border-b-2 transition-colors ${activeTab === 'notifications' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500'}`}>Notificações</button>
+         </div>
 
-        <div className="p-6">
-          {activeTab === 'users' && (
-            <div className="space-y-4">
+         {activeTab === 'condo' && (
+           <div className="space-y-4 max-w-lg">
+              <div>
+                 <label className="block text-xs font-medium text-slate-500 mb-1">Nome do Condomínio</label>
+                 <input type="text" value={condo.name || ''} onChange={e => handleUpdateCondo('name', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+              </div>
+              <div>
+                 <label className="block text-xs font-medium text-slate-500 mb-1">CNPJ</label>
+                 <input type="text" value={condo.cnpj || ''} onChange={e => handleUpdateCondo('cnpj', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+              </div>
+              <div>
+                 <label className="block text-xs font-medium text-slate-500 mb-1">Endereço</label>
+                 <input type="text" value={condo.address || ''} onChange={e => handleUpdateCondo('address', e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+              </div>
+           </div>
+         )}
+
+         {activeTab === 'users' && (
+           <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-slate-800">Usuários do Sistema</h3>
-                <button onClick={() => handleOpenUserModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm text-sm">
-                  <Plus size={16} /> Novo Usuário
-                </button>
+                 <h3 className="font-semibold text-slate-700">Usuários do Sistema</h3>
+                 <button onClick={() => setEditingUser({ name: '', email: '', role: 'Morador', permittedCondos: [] })} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm">Novo Usuário</button>
               </div>
               <table className="w-full text-sm text-left">
-                <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
+                <thead className="text-xs text-slate-500 bg-slate-50 uppercase">
                   <tr>
-                    <th className="p-3 pl-4">Nome</th>
-                    <th className="p-3">Email</th>
-                    <th className="p-3">Função</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 text-right pr-4">Ações</th>
+                    <th className="px-4 py-3">Nome</th>
+                    <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Função</th>
+                    <th className="px-4 py-3">Acesso (Condomínios)</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Ações</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {usersData.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3 pl-4 font-medium text-slate-800">{u.name}</td>
-                      <td className="p-3 text-slate-600">{u.email}</td>
-                      <td className="p-3 text-slate-600">{u.role}</td>
-                      <td className="p-3"><StatusBadge status={u.status} /></td>
-                      <td className="p-3 text-right pr-4 space-x-2">
-                        <button onClick={() => handleOpenUserModal(u)} className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">Editar</button>
-                        <button 
-                          onClick={() => handleToggleStatus(u.id)} 
-                          className={`font-medium text-xs ${u.status === 'active' ? 'text-red-600 hover:text-red-800' : 'text-emerald-600 hover:text-emerald-800'}`}
-                        >
-                          {u.status === 'active' ? 'Desativar' : 'Ativar'}
-                        </button>
-                      </td>
+                <tbody>
+                  {users.map((u: any) => (
+                    <tr key={u.id} className="border-b last:border-0 hover:bg-slate-50">
+                       <td className="px-4 py-3 font-medium flex items-center gap-2">
+                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500"><User size={16} /></div>
+                         {u.name}
+                       </td>
+                       <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                       <td className="px-4 py-3 text-slate-600">{u.role}</td>
+                       <td className="px-4 py-3 text-xs text-slate-500">
+                          {u.permittedCondos?.map((cid: number) => condos.find((c:any) => c.id === cid)?.name).join(', ') || 'Nenhum'}
+                       </td>
+                       <td className="px-4 py-3"><StatusBadge status={u.status} /></td>
+                       <td className="px-4 py-3 text-right flex justify-end gap-2">
+                          <button onClick={() => setEditingUser({...u})} className="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Editar</button>
+                          <button onClick={() => handleToggleStatus(u.id)} className={`text-xs font-medium ${u.status === 'active' ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'}`}>
+                             {u.status === 'active' ? 'Desativar' : 'Ativar'}
+                          </button>
+                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+           </div>
+         )}
+         
+         {activeTab === 'notifications' && (
+           <div className="space-y-4 max-w-lg">
+              <p className="text-sm text-slate-500 mb-4">Configure quais alertas você deseja receber.</p>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                 <span className="text-sm font-medium text-slate-700">Manutenção Preventiva</span>
+                 <input type="checkbox" defaultChecked className="toggle" />
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                 <span className="text-sm font-medium text-slate-700">Novas Infrações</span>
+                 <input type="checkbox" defaultChecked className="toggle" />
+              </div>
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                 <span className="text-sm font-medium text-slate-700">Financeiro (Contas a Pagar)</span>
+                 <input type="checkbox" defaultChecked className="toggle" />
+              </div>
+           </div>
+         )}
+      </Card>
+
+      <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title={editingUser?.id ? "Editar Usuário" : "Novo Usuário"}>
+         <div className="space-y-4">
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Nome</label>
+               <input type="text" value={editingUser?.name || ''} onChange={e => setEditingUser({...editingUser, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
             </div>
-          )}
-
-          {activeTab === 'general' && (
-             <div className="max-w-2xl space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                   <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Razão Social</label>
-                      <input 
-                         type="text" 
-                         value={tenantForm.name} 
-                         onChange={e => setTenantForm({...tenantForm, name: e.target.value})}
-                         className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                       />
-                   </div>
-                   <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">CNPJ</label>
-                      <input 
-                         type="text" 
-                         value={tenantForm.cnpj} 
-                         onChange={e => setTenantForm({...tenantForm, cnpj: e.target.value})}
-                         className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                       />
-                   </div>
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Endereço</label>
-                   <input type="text" defaultValue="Rua das Flores, 123 - Centro" className="w-full p-2 bg-white border border-slate-200 rounded-lg" />
-                </div>
-                <button onClick={handleSaveTenant} className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Salvar Alterações</button>
-             </div>
-          )}
-
-          {activeTab === 'notifications' && (
-             <div className="max-w-xl space-y-6">
-                <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                   <div>
-                      <h4 className="font-medium text-slate-800">Alertas de Manutenção</h4>
-                      <p className="text-xs text-slate-500">Receber emails sobre vencimento de preventivas</p>
-                   </div>
-                   <input type="checkbox" defaultChecked className="toggle-checkbox text-indigo-600 rounded" />
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                   <div>
-                      <h4 className="font-medium text-slate-800">Resumo Financeiro Semanal</h4>
-                      <p className="text-xs text-slate-500">Receber relatório de fluxo de caixa toda segunda-feira</p>
-                   </div>
-                   <input type="checkbox" defaultChecked className="toggle-checkbox text-indigo-600 rounded" />
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-slate-100">
-                   <div>
-                      <h4 className="font-medium text-slate-800">Novas Infrações</h4>
-                      <p className="text-xs text-slate-500">Notificar imediatamente ao registrar ocorrência</p>
-                   </div>
-                   <input type="checkbox" defaultChecked className="toggle-checkbox text-indigo-600 rounded" />
-                </div>
-             </div>
-          )}
-        </div>
-      </div>
-
-      {isUserModalOpen && (
-        <Modal title={editingUser ? "Editar Usuário" : "Novo Usuário"} onClose={() => setIsUserModalOpen(false)}>
-          <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Nome</label>
-               <input 
-                 type="text" 
-                 value={userForm.name}
-                 onChange={e => setUserForm({...userForm, name: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-               <input 
-                 type="email" 
-                 value={userForm.email}
-                 onChange={e => setUserForm({...userForm, email: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Função</label>
-               <select 
-                 value={userForm.role}
-                 onChange={e => setUserForm({...userForm, role: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-               >
-                 <option>Síndico</option>
-                 <option>Administradora</option>
-                 <option>Porteiro</option>
-                 <option>Zelador</option>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
+               <input type="email" value={editingUser?.email || ''} onChange={e => setEditingUser({...editingUser, email: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Função</label>
+               <select value={editingUser?.role || 'Morador'} onChange={e => setEditingUser({...editingUser, role: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                  <option value="Síndico">Síndico</option>
+                  <option value="Administradora">Administradora</option>
+                  <option value="Portaria">Portaria</option>
+                  <option value="Morador">Morador</option>
                </select>
-             </div>
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Senha {editingUser && '(Deixe em branco para manter)'}</label>
-               <input 
-                 type="password" 
-                 value={userForm.password}
-                 onChange={e => setUserForm({...userForm, password: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <button 
-               onClick={handleSaveUser}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-             >
-               Salvar Usuário
-             </button>
-          </div>
-        </Modal>
-      )}
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-2">Permissões de Acesso (Condomínios)</label>
+               <div className="space-y-2 border border-slate-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  {condos.map((c: any) => (
+                    <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                       <input 
+                         type="checkbox" 
+                         checked={editingUser?.permittedCondos?.includes(c.id) || false} 
+                         onChange={() => handleCondoPermissionChange(c.id)}
+                         className="rounded text-indigo-600"
+                       />
+                       <span className="text-sm text-slate-700">{c.name}</span>
+                    </label>
+                  ))}
+               </div>
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Senha (Opcional)</label>
+               <input type="password" placeholder="Nova senha..." className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <button onClick={handleSaveUser} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar</button>
+         </div>
+      </Modal>
     </div>
   );
 };
 
-// --- APP COMPONENT ---
+const RegistrationView = ({ condos, onUpdate }: any) => {
+  const [activeTab, setActiveTab] = useState('condos');
+  const [editingCondo, setEditingCondo] = useState<any>(null);
+
+  const handleSaveCondo = () => {
+    if (editingCondo.id) {
+       onUpdate(condos.map((c: any) => c.id === editingCondo.id ? editingCondo : c));
+    } else {
+       // Sequencial ID logic
+       const maxId = condos.length > 0 ? Math.max(...condos.map((c: any) => c.id)) : 0;
+       onUpdate([...condos, { ...editingCondo, id: maxId + 1 }]);
+    }
+    setEditingCondo(null);
+  };
+
+  const handleDelete = (id: number) => {
+    if (typeof window !== 'undefined' && window.confirm('Excluir este condomínio?')) {
+       onUpdate(condos.filter((c: any) => c.id !== id));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-2">
+        <h2 className="text-2xl font-bold text-slate-800">Cadastros</h2>
+        <p className="text-slate-500 text-sm">Gerencie os registros do sistema</p>
+      </div>
+
+      <Card>
+         <div className="flex gap-4 border-b border-slate-100 mb-6">
+            <button className="pb-3 px-2 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600">Condomínios</button>
+            {/* Placeholders for future modules */}
+         </div>
+
+         <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold text-slate-700">Lista de Condomínios</h3>
+            <button onClick={() => setEditingCondo({ name: '', cnpj: '', address: '', syndic: '' })} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm flex items-center gap-2"><Plus size={16}/> Novo Condomínio</button>
+         </div>
+
+         <table className="w-full text-sm text-left">
+           <thead className="text-xs text-slate-500 bg-slate-50 uppercase">
+             <tr>
+               <th className="px-4 py-3">ID</th>
+               <th className="px-4 py-3">Nome</th>
+               <th className="px-4 py-3">CNPJ</th>
+               <th className="px-4 py-3">Endereço</th>
+               <th className="px-4 py-3">Síndico</th>
+               <th className="px-4 py-3 text-right">Ações</th>
+             </tr>
+           </thead>
+           <tbody>
+             {condos.map((c: any) => (
+               <tr key={c.id} className="border-b last:border-0 hover:bg-slate-50">
+                  <td className="px-4 py-3 text-slate-500 font-mono text-xs">{c.id}</td>
+                  <td className="px-4 py-3 font-medium flex items-center gap-2">
+                     <div className="p-1 bg-indigo-100 text-indigo-600 rounded"><Database size={14}/></div>
+                     {c.name}
+                  </td>
+                  <td className="px-4 py-3 text-slate-600">{c.cnpj}</td>
+                  <td className="px-4 py-3 text-slate-600">{c.address}</td>
+                  <td className="px-4 py-3 text-slate-600">{c.syndic}</td>
+                  <td className="px-4 py-3 text-right flex justify-end gap-2">
+                     <button type="button" onClick={() => setEditingCondo({...c})} className="text-indigo-600 hover:text-indigo-800"><Edit size={16}/></button>
+                     <button type="button" onClick={() => handleDelete(c.id)} className="text-slate-400 hover:text-rose-600"><Trash2 size={16}/></button>
+                  </td>
+               </tr>
+             ))}
+           </tbody>
+         </table>
+      </Card>
+
+      <Modal isOpen={!!editingCondo} onClose={() => setEditingCondo(null)} title={editingCondo?.id ? "Editar Condomínio" : "Novo Condomínio"}>
+         <div className="space-y-4">
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Nome do Condomínio</label>
+               <input type="text" value={editingCondo?.name || ''} onChange={e => setEditingCondo({...editingCondo, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">CNPJ</label>
+               <input type="text" value={editingCondo?.cnpj || ''} onChange={e => setEditingCondo({...editingCondo, cnpj: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Endereço</label>
+               <input type="text" value={editingCondo?.address || ''} onChange={e => setEditingCondo({...editingCondo, address: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <div>
+               <label className="block text-xs font-medium text-slate-500 mb-1">Nome do Síndico</label>
+               <input type="text" value={editingCondo?.syndic || ''} onChange={e => setEditingCondo({...editingCondo, syndic: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+            </div>
+            <button onClick={handleSaveCondo} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar</button>
+         </div>
+      </Modal>
+    </div>
+  );
+};
+
+const ResidentsView = ({ currentCondoId, data, units, onUpdate }: any) => {
+  const [editingResident, setEditingResident] = useState<any>(null);
+  const displayData = data.filter((r: any) => r.condoId === currentCondoId);
+  const condoUnits = units.filter((u: any) => u.condoId === currentCondoId);
+
+  const handleSave = () => {
+    if (editingResident.id) {
+       onUpdate(data.map((r: any) => r.id === editingResident.id ? editingResident : r));
+    } else {
+       onUpdate([...data, { ...editingResident, id: Date.now(), condoId: currentCondoId }]);
+    }
+    setEditingResident(null);
+  };
+
+  const handleDelete = (id: number) => {
+     if (typeof window !== 'undefined' && window.confirm('Excluir morador?')) {
+        onUpdate(data.filter((r: any) => r.id !== id));
+     }
+  };
+
+  return (
+    <div className="space-y-6">
+       <div className="flex justify-between items-center">
+         <h2 className="text-2xl font-bold text-slate-800">Moradores</h2>
+         <button onClick={() => setEditingResident({ name: '', email: '', phone: '', unit: '', occupants: 1 })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+           <Plus size={18} /> Novo Morador
+         </button>
+       </div>
+
+       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+         <table className="w-full text-sm text-left">
+           <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+             <tr>
+               <th className="px-6 py-4">Nome</th>
+               <th className="px-6 py-4">Contato</th>
+               <th className="px-6 py-4">Unidade</th>
+               <th className="px-6 py-4">Ocupantes</th>
+               <th className="px-6 py-4 text-right">Ações</th>
+             </tr>
+           </thead>
+           <tbody>
+             {displayData.map((r: any) => (
+               <tr key={r.id} className="border-b last:border-0 hover:bg-slate-50">
+                 <td className="px-6 py-4 font-medium text-slate-800">{r.name}</td>
+                 <td className="px-6 py-4 text-slate-600">
+                    <p>{r.email}</p>
+                    <p className="text-xs">{r.phone}</p>
+                 </td>
+                 <td className="px-6 py-4 text-slate-600">{r.unit}</td>
+                 <td className="px-6 py-4 text-slate-600">{r.occupants}</td>
+                 <td className="px-6 py-4 text-right flex justify-end gap-2">
+                    <button onClick={() => setEditingResident({...r})} className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">Editar</button>
+                    <button onClick={() => handleDelete(r.id)} className="text-slate-400 hover:text-rose-600 font-medium text-xs">Excluir</button>
+                 </td>
+               </tr>
+             ))}
+           </tbody>
+         </table>
+       </div>
+
+       <Modal isOpen={!!editingResident} onClose={() => setEditingResident(null)} title={editingResident?.id ? "Editar Morador" : "Novo Morador"}>
+          <div className="space-y-4">
+             <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Nome Completo</label>
+                <input type="text" value={editingResident?.name || ''} onChange={e => setEditingResident({...editingResident, name: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Email</label>
+                  <input type="email" value={editingResident?.email || ''} onChange={e => setEditingResident({...editingResident, email: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-500 mb-1">Telefone</label>
+                  <input type="text" value={editingResident?.phone || ''} onChange={e => setEditingResident({...editingResident, phone: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+                </div>
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div>
+                   <label className="block text-xs font-medium text-slate-500 mb-1">Unidade</label>
+                   <select value={editingResident?.unit || ''} onChange={e => setEditingResident({...editingResident, unit: e.target.value})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white">
+                      <option value="">Selecione...</option>
+                      {condoUnits.map((u: any) => <option key={u.id} value={`${u.number} - ${u.block}`}>{u.number} - {u.block}</option>)}
+                   </select>
+                </div>
+                <div>
+                   <label className="block text-xs font-medium text-slate-500 mb-1">Nº Ocupantes</label>
+                   <input type="number" value={editingResident?.occupants || 1} onChange={e => setEditingResident({...editingResident, occupants: Number(e.target.value)})} className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white" />
+                </div>
+             </div>
+             <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded-lg mt-4">Salvar</button>
+          </div>
+       </Modal>
+    </div>
+  );
+};
+
+// --- APP ---
 
 const App = () => {
-  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
-  const [currentTenantId, setCurrentTenantId] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.currentTenantId, 1)
-  );
-  const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
+  const [activeView, setActiveView] = useState('dashboard');
+  const [currentCondoId, setCurrentCondoId] = useState(1);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
-  // Notification State
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.notifications, MOCK_NOTIFICATIONS)
-  );
 
+  // Persistence State
+  const [condoData, setCondoData] = useState(() => JSON.parse(localStorage.getItem('condos') || JSON.stringify(MOCK_CONDOS)));
+  const [unitData, setUnitData] = useState(() => JSON.parse(localStorage.getItem('units') || JSON.stringify(MOCK_UNITS)));
+  const [financeData, setFinanceData] = useState(() => JSON.parse(localStorage.getItem('finance') || JSON.stringify(MOCK_FINANCE)));
+  const [maintenanceData, setMaintenanceData] = useState(() => JSON.parse(localStorage.getItem('maintenance') || JSON.stringify(MOCK_MAINTENANCE)));
+  const [suppliersData, setSuppliersData] = useState(() => JSON.parse(localStorage.getItem('suppliers') || JSON.stringify(MOCK_SUPPLIERS)));
+  const [infractionsData, setInfractionsData] = useState(() => JSON.parse(localStorage.getItem('infractions') || JSON.stringify(MOCK_INFRACTIONS)));
+  const [documentsData, setDocumentsData] = useState(() => JSON.parse(localStorage.getItem('documents') || JSON.stringify(MOCK_DOCUMENTS)));
+  const [userData, setUserData] = useState(() => JSON.parse(localStorage.getItem('users') || JSON.stringify(MOCK_USERS)));
+  const [regulationsData, setRegulationsData] = useState(() => JSON.parse(localStorage.getItem('regulations') || JSON.stringify(MOCK_REGULATIONS)));
+  const [residentsData, setResidentsData] = useState(() => JSON.parse(localStorage.getItem('residents') || JSON.stringify(MOCK_RESIDENTS)));
+
+  // Save to LocalStorage
+  useEffect(() => { localStorage.setItem('condos', JSON.stringify(condoData)); }, [condoData]);
+  useEffect(() => { localStorage.setItem('units', JSON.stringify(unitData)); }, [unitData]);
+  useEffect(() => { localStorage.setItem('finance', JSON.stringify(financeData)); }, [financeData]);
+  useEffect(() => { localStorage.setItem('maintenance', JSON.stringify(maintenanceData)); }, [maintenanceData]);
+  useEffect(() => { localStorage.setItem('suppliers', JSON.stringify(suppliersData)); }, [suppliersData]);
+  useEffect(() => { localStorage.setItem('infractions', JSON.stringify(infractionsData)); }, [infractionsData]);
+  useEffect(() => { localStorage.setItem('documents', JSON.stringify(documentsData)); }, [documentsData]);
+  useEffect(() => { localStorage.setItem('users', JSON.stringify(userData)); }, [userData]);
+  useEffect(() => { localStorage.setItem('regulations', JSON.stringify(regulationsData)); }, [regulationsData]);
+  useEffect(() => { localStorage.setItem('residents', JSON.stringify(residentsData)); }, [residentsData]);
+
+  const resetDatabase = () => {
+    if (confirm('Atenção! Isso apagará todos os dados salvos e restaurará os dados de exemplo. Continuar?')) {
+      localStorage.clear();
+      window.location.reload();
+    }
+  };
+
+  const currentCondo = condoData.find((c: any) => c.id === currentCondoId) || condoData[0];
+  
+  // Notifications logic
+  const notifications = [
+     ...MOCK_NOTIFICATIONS,
+     // Add auto-generated document alerts
+     ...documentsData.filter((d: any) => {
+        if (!d.validUntil || d.permanent) return false;
+        const validDate = new Date(d.validUntil);
+        const today = new Date();
+        return validDate < today;
+     }).map((d: any) => ({ 
+        id: `doc-${d.id}`, 
+        title: 'Documento Vencido', 
+        message: `${d.title} venceu em ${new Date(d.validUntil).toLocaleDateString()}`, 
+        read: false, 
+        date: new Date().toISOString() 
+     }))
+  ];
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(n => ({...n, read: true})));
-    setIsNotifOpen(false);
-  };
-
-  const currentTenant = TENANTS.find(t => t.id === currentTenantId) || TENANTS[0];
-
-  // CENTRALIZED STATE - Load from localStorage with mock data as fallback
-  const [financeData, setFinanceData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.finance, MOCK_FINANCE)
-  );
-  const [unitsData, setUnitsData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.units, MOCK_UNITS)
-  );
-  const [maintenanceData, setMaintenanceData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.maintenance, MOCK_MAINTENANCE)
-  );
-  const [suppliersData, setSuppliersData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.suppliers, MOCK_SUPPLIERS)
-  );
-  const [documentsData, setDocumentsData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.documents, MOCK_DOCUMENTS)
-  );
-  const [infractionsData, setInfractionsData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.infractions, MOCK_INFRACTIONS)
-  );
-  const [usersData, setUsersData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.users, MOCK_SYSTEM_USERS)
-  );
-  const [regimentData, setRegimentData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.regiment, MOCK_REGIMENT_RULES)
-  );
-  const [tenantsData, setTenantsData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.tenants, TENANTS)
-  );
-  const [residentsData, setResidentsData] = useState(() => 
-    loadFromStorage(STORAGE_KEYS.residents, MOCK_RESIDENTS)
-  );
-
-  // Auto-save to localStorage when data changes
-  useEffect(() => { saveToStorage(STORAGE_KEYS.finance, financeData); }, [financeData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.units, unitsData); }, [unitsData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.maintenance, maintenanceData); }, [maintenanceData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.suppliers, suppliersData); }, [suppliersData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.documents, documentsData); }, [documentsData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.infractions, infractionsData); }, [infractionsData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.users, usersData); }, [usersData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.regiment, regimentData); }, [regimentData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.tenants, tenantsData); }, [tenantsData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.residents, residentsData); }, [residentsData]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.notifications, notifications); }, [notifications]);
-  useEffect(() => { saveToStorage(STORAGE_KEYS.currentTenantId, currentTenantId); }, [currentTenantId]);
-
-  // Check for expired documents and add notifications
-  useEffect(() => {
-    const expiredDocs = documentsData.filter(d => {
-      if (!d.expiry || d.status === 'permanent') return false;
-      return new Date(d.expiry) < new Date();
-    });
-
-    if (expiredDocs.length > 0) {
-      // Check if we already notified to avoid infinite loop or duplicates of the same type
-      const hasNotification = notifications.some(n => n.title === 'Alerta de Documentos');
-      if (!hasNotification) {
-        setNotifications(prev => [{
-          id: Date.now(),
-          title: 'Alerta de Documentos',
-          message: `Existem ${expiredDocs.length} documentos vencidos que precisam de atenção.`,
-          time: 'Agora',
-          read: false
-        }, ...prev]);
-      }
-    }
-  }, [documentsData]);
-
-  const renderView = () => {
-    switch(currentView) {
-      case 'dashboard': 
-        return <DashboardView 
-                  onNavigate={setCurrentView} 
-                  data={{ 
-                      finance: financeData, 
-                      units: unitsData, 
-                      maintenance: maintenanceData,
-                      documents: documentsData
-                  }} 
-               />;
-      case 'units': 
-        return <UnitsView 
-                  data={unitsData} 
-                  onUpdate={setUnitsData} 
-                  residents={residentsData}
-               />;
-      case 'residents':
-        return <ResidentsView
-                  data={residentsData}
-                  onUpdate={setResidentsData}
-               />;
-      case 'finance': 
-        return <FinanceView 
-                  data={financeData} 
-                  onUpdate={setFinanceData} 
-                  suppliers={suppliersData}
-               />;
-      case 'maintenance': 
-        return <MaintenanceView 
-                  data={maintenanceData} 
-                  onUpdate={setMaintenanceData} 
-               />;
-      case 'suppliers': 
-        return <SuppliersView 
-                  data={suppliersData} 
-                  onUpdate={setSuppliersData} 
-               />;
-      case 'documents':
-        return <DocumentsView 
-                  data={documentsData}
-                  onUpdate={setDocumentsData}
-               />;
-      case 'infractions':
-        return <InfractionsView 
-                  data={infractionsData}
-                  onUpdate={setInfractionsData}
-                  regimentRules={regimentData}
-                  onUpdateRegiment={setRegimentData}
-               />;
-      case 'settings':
-        return <SettingsView 
-                  usersData={usersData} 
-                  onUpdateUsers={setUsersData}
-                  tenantData={tenantsData}
-                  onUpdateTenant={setTenantsData}
-               />;
-      default: return <div>View not found</div>;
-    }
-  };
-
-  const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
-    <button
-      onClick={() => {
-        setCurrentView(view);
-        setIsMobileMenuOpen(false);
-      }}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-        currentView === view 
-          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' 
-          : 'text-slate-400 hover:text-white hover:bg-slate-800'
-      }`}
+  const MenuItem = ({ id, icon: Icon, label }: any) => (
+    <button 
+      onClick={() => { setActiveView(id); setIsMobileMenuOpen(false); }}
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${activeView === id ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
     >
       <Icon size={20} />
-      <span className="font-medium">{label}</span>
+      <span className="font-medium text-sm">{label}</span>
     </button>
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
-      {/* Mobile Overlay */}
-      {isMobileMenuOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden animate-in fade-in duration-200"
-          onClick={() => setIsMobileMenuOpen(false)}
-        />
-      )}
-
+    <div className="min-h-screen bg-slate-50 flex font-[Inter]">
       {/* Sidebar */}
-      <aside className={`w-72 bg-slate-900 text-white flex-shrink-0 fixed h-full z-30 transition-transform duration-300 flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:static'}`}>
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="bg-indigo-600 p-2.5 rounded-lg shadow-lg shadow-indigo-500/30">
-              <Building2 size={24} className="text-white" />
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-300 lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}>
+        <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-indigo-600 p-2 rounded-lg">
+              <LayoutDashboard size={24} className="text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-xl tracking-tight">GestorCondo</h1>
-              <p className="text-xs text-slate-400 font-medium">PRO 360</p>
+              <h1 className="font-bold text-lg leading-tight">GestorCondo</h1>
+              <p className="text-xs text-slate-400">PRO 360</p>
             </div>
           </div>
-
-          <nav className="space-y-1.5 overflow-y-auto max-h-[calc(100vh-200px)]">
-            <NavItem view="dashboard" icon={PieChart} label="Visão Geral" />
-            <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Principal</div>
-            <NavItem view="units" icon={User} label="Unidades" />
-            <NavItem view="residents" icon={Users} label="Moradores" />
-            <NavItem view="maintenance" icon={Wrench} label="Manutenção" />
-            <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Administrativo</div>
-            <NavItem view="finance" icon={DollarSign} label="Financeiro" />
-            <NavItem view="suppliers" icon={Truck} label="Fornecedores" />
-            <NavItem view="infractions" icon={AlertTriangle} label="Infrações" />
-            <NavItem view="documents" icon={FileText} label="Documentos" />
-            <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Sistema</div>
-            <NavItem view="settings" icon={Settings} label="Configurações" />
-          </nav>
+          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-slate-400"><X size={24} /></button>
         </div>
 
-        <div className="mt-auto p-6 border-t border-slate-800">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold shadow-lg">
-              CS
-            </div>
-            <div>
-              <p className="font-medium text-sm">Carlos Síndico</p>
-              <p className="text-xs text-slate-400">Gestor Principal</p>
-            </div>
-          </div>
+        <nav className="flex-1 overflow-y-auto p-4 space-y-1">
+          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-2">Principal</p>
+          <MenuItem id="dashboard" icon={LayoutDashboard} label="Visão Geral" />
+          <MenuItem id="units" icon={Home} label="Unidades" />
+          <MenuItem id="residents" icon={Users} label="Moradores" />
+          <MenuItem id="maintenance" icon={Wrench} label="Manutenção" />
+          
+          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-6">Administrativo</p>
+          <MenuItem id="finance" icon={DollarSign} label="Financeiro" />
+          <MenuItem id="suppliers" icon={Truck} label="Fornecedores" />
+          <MenuItem id="infractions" icon={AlertTriangle} label="Infrações" />
+          <MenuItem id="documents" icon={FileText} label="Documentos" />
+
+          <p className="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-6">Sistema</p>
+          <MenuItem id="registration" icon={Edit} label="Cadastros" />
+          <MenuItem id="settings" icon={Settings} label="Configurações" />
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+           <button onClick={resetDatabase} className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-400 hover:text-rose-300 transition-colors">
+              <Database size={14} /> Resetar Banco de Dados
+           </button>
+           <div className="mt-4 flex items-center gap-3 px-4">
+              <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold">CS</div>
+              <div>
+                 <p className="text-sm font-medium">Carlos Síndico</p>
+                 <p className="text-xs text-slate-400">Gestor Principal</p>
+              </div>
+           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
+      <main className="flex-1 lg:ml-64 flex flex-col min-h-screen">
         {/* Header */}
-        <header className="h-20 bg-white border-b border-slate-200 sticky top-0 z-10 px-4 md:px-8 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-             <button 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
-             >
-                <Menu size={24} />
-             </button>
-             
-             <div className="relative">
-                <button 
-                    onClick={() => setIsTenantDropdownOpen(!isTenantDropdownOpen)}
-                    className="flex items-center gap-2 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+        <header className="bg-white border-b border-slate-200 h-16 px-6 flex items-center justify-between sticky top-0 z-40 shadow-sm">
+          <div className="flex items-center gap-4">
+             <button onClick={() => setIsMobileMenuOpen(true)} className="lg:hidden text-slate-500"><Menu size={24} /></button>
+             <div className="flex flex-col">
+                <select 
+                  value={currentCondoId} 
+                  onChange={(e) => setCurrentCondoId(Number(e.target.value))}
+                  className="font-bold text-slate-800 bg-transparent border-none focus:ring-0 p-0 cursor-pointer text-sm"
                 >
-                    <div className="text-left">
-                    <h2 className="font-bold text-slate-800 leading-tight text-sm md:text-base">{currentTenant.name}</h2>
-                    <p className="text-xs text-slate-500 hidden md:block">{currentTenant.cnpj}</p>
-                    </div>
-                    <ChevronDown size={16} className="text-slate-400" />
-                </button>
-
-                {isTenantDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-100">
-                    {tenantsData.map(t => (
-                        <button 
-                            key={t.id}
-                            onClick={() => {
-                                setCurrentTenantId(t.id);
-                                setIsTenantDropdownOpen(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 hover:bg-slate-50 text-sm ${currentTenantId === t.id ? 'font-semibold text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
-                        >
-                            {t.name}
-                        </button>
-                    ))}
-                    </div>
-                )}
+                  {condoData.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
              </div>
           </div>
-
           <div className="flex items-center gap-4">
-            <div className="relative">
-               <button 
-                  onClick={() => setIsNotifOpen(!isNotifOpen)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-all relative"
-               >
-                 <Bell size={20} />
-                 {unreadCount > 0 && (
-                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-                 )}
-               </button>
+             {/* Notifications */}
+             <div className="relative">
+                <button onClick={() => setShowNotifications(!showNotifications)} className="relative text-slate-500 hover:text-indigo-600 transition-colors">
+                   <Bell size={20} />
+                   {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full"></span>}
+                </button>
+                
+                {showNotifications && (
+                   <div className="absolute right-0 top-10 w-80 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden animate-in fade-in zoom-in duration-200">
+                      <div className="p-3 border-b border-slate-50 bg-slate-50 flex justify-between items-center">
+                         <h3 className="font-semibold text-sm text-slate-700">Notificações</h3>
+                         <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{unreadCount} novas</span>
+                      </div>
+                      <div className="max-h-80 overflow-y-auto">
+                         {notifications.length > 0 ? notifications.map((n: any) => (
+                            <div key={n.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/50' : ''}`}>
+                               <div className="flex justify-between items-start mb-1">
+                                  <p className={`text-sm ${!n.read ? 'font-bold text-slate-800' : 'font-medium text-slate-600'}`}>{n.title}</p>
+                                  <span className="text-[10px] text-slate-400">{new Date(n.date).toLocaleDateString()}</span>
+                               </div>
+                               <p className="text-xs text-slate-500">{n.message}</p>
+                            </div>
+                         )) : (
+                            <div className="p-8 text-center text-slate-500 text-sm">Nenhuma notificação.</div>
+                         )}
+                      </div>
+                   </div>
+                )}
+             </div>
 
-               {isNotifOpen && (
-                 <div className="absolute top-full right-0 mt-4 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                    <div className="p-4 border-b border-slate-50 flex justify-between items-center">
-                       <h3 className="font-semibold text-slate-800">Notificações</h3>
-                       {unreadCount > 0 && (
-                          <button onClick={markAllAsRead} className="text-xs text-indigo-600 font-medium hover:text-indigo-800">Marcar lidas</button>
-                       )}
-                    </div>
-                    <div className="max-h-80 overflow-y-auto">
-                       {notifications.length === 0 ? (
-                          <div className="p-6 text-center text-slate-500 text-sm">Nenhuma notificação nova.</div>
-                       ) : (
-                          notifications.map(n => (
-                             <div key={n.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors ${!n.read ? 'bg-indigo-50/50' : ''}`}>
-                                <div className="flex justify-between items-start mb-1">
-                                   <p className={`text-sm ${!n.read ? 'font-semibold text-slate-800' : 'font-medium text-slate-700'}`}>{n.title}</p>
-                                   <span className="text-[10px] text-slate-400">{n.time}</span>
-                                </div>
-                                <p className="text-xs text-slate-500">{n.message}</p>
-                             </div>
-                          ))
-                       )}
-                    </div>
-                 </div>
-               )}
-            </div>
+             <button className="text-slate-400 hover:text-indigo-600"><LogOut size={20} /></button>
           </div>
         </header>
 
-        {/* View Content */}
-        <div className="p-4 md:p-8 overflow-x-hidden">
-          {renderView()}
+        {/* Dynamic View Content */}
+        <div className="p-6 overflow-y-auto">
+           {activeView === 'dashboard' && <DashboardView currentCondoId={currentCondoId} financeData={financeData} unitsData={unitData} maintenanceData={maintenanceData} documentsData={documentsData} />}
+           {activeView === 'units' && <UnitsView currentCondoId={currentCondoId} data={unitData} residentsData={residentsData} onUpdate={setUnitData} />}
+           {activeView === 'residents' && <ResidentsView currentCondoId={currentCondoId} data={residentsData} units={unitData} onUpdate={setResidentsData} />}
+           {activeView === 'maintenance' && <MaintenanceView currentCondoId={currentCondoId} data={maintenanceData} suppliers={suppliersData} onUpdate={setMaintenanceData} />}
+           {activeView === 'finance' && <FinanceView currentCondoId={currentCondoId} data={financeData} suppliers={suppliersData} onUpdate={setFinanceData} />}
+           {activeView === 'suppliers' && <SuppliersView currentCondoId={currentCondoId} data={suppliersData} onUpdate={setSuppliersData} />}
+           {activeView === 'infractions' && <InfractionsView currentCondoId={currentCondoId} data={infractionsData} regulations={regulationsData} onUpdate={setInfractionsData} onUpdateRules={setRegulationsData} />}
+           {activeView === 'documents' && <DocumentsView currentCondoId={currentCondoId} data={documentsData} onUpdate={setDocumentsData} />}
+           {activeView === 'registration' && <RegistrationView condos={condoData} onUpdate={setCondoData} />}
+           {activeView === 'settings' && <SettingsView currentCondoId={currentCondoId} data={condoData} users={userData} condos={condoData} onUpdate={setCondoData} onUpdateUsers={setUserData} />}
         </div>
       </main>
     </div>
   );
 };
 
-const rootElement = document.getElementById('root');
-if (rootElement) {
-  createRoot(rootElement).render(<App />);
-}
+const container = document.getElementById('root');
+const root = createRoot(container!);
+root.render(<App />);
