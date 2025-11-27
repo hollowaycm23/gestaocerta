@@ -38,7 +38,43 @@ import {
 // Types
 type ViewState = 'dashboard' | 'units' | 'residents' | 'finance' | 'maintenance' | 'settings' | 'suppliers' | 'documents' | 'infractions';
 
-// Mock Data Initial State
+// LocalStorage Keys
+const STORAGE_KEYS = {
+  units: 'gestorcondo_units',
+  residents: 'gestorcondo_residents',
+  finance: 'gestorcondo_finance',
+  maintenance: 'gestorcondo_maintenance',
+  suppliers: 'gestorcondo_suppliers',
+  documents: 'gestorcondo_documents',
+  infractions: 'gestorcondo_infractions',
+  users: 'gestorcondo_users',
+  regiment: 'gestorcondo_regiment',
+  tenants: 'gestorcondo_tenants',
+  notifications: 'gestorcondo_notifications',
+};
+
+// LocalStorage Utility Functions
+const saveToStorage = <T,>(key: string, data: T): void => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error('Error saving to localStorage:', error);
+  }
+};
+
+const loadFromStorage = <T,>(key: string, defaultValue: T): T => {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      return JSON.parse(stored) as T;
+    }
+  } catch (error) {
+    console.error('Error loading from localStorage:', error);
+  }
+  return defaultValue;
+};
+
+// Mock Data Initial State (used as defaults when no saved data exists)
 const MOCK_UNITS = [
   { id: 1, unit: '101', block: 'A', owner: 'João Silva', status: 'occupied', type: 'owner' },
   { id: 2, unit: '102', block: 'A', owner: 'Maria Souza', status: 'debt', type: 'tenant' },
@@ -2324,7 +2360,9 @@ const App = () => {
   
   // Notification State
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [notifications, setNotifications] = useState(MOCK_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.notifications, MOCK_NOTIFICATIONS)
+  );
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -2335,17 +2373,50 @@ const App = () => {
 
   const currentTenant = TENANTS.find(t => t.id === currentTenantId) || TENANTS[0];
 
-  // CENTRALIZED STATE
-  const [financeData, setFinanceData] = useState(MOCK_FINANCE);
-  const [unitsData, setUnitsData] = useState(MOCK_UNITS);
-  const [maintenanceData, setMaintenanceData] = useState(MOCK_MAINTENANCE);
-  const [suppliersData, setSuppliersData] = useState(MOCK_SUPPLIERS);
-  const [documentsData, setDocumentsData] = useState(MOCK_DOCUMENTS);
-  const [infractionsData, setInfractionsData] = useState(MOCK_INFRACTIONS);
-  const [usersData, setUsersData] = useState(MOCK_SYSTEM_USERS);
-  const [regimentData, setRegimentData] = useState(MOCK_REGIMENT_RULES);
-  const [tenantsData, setTenantsData] = useState(TENANTS);
-  const [residentsData, setResidentsData] = useState(MOCK_RESIDENTS);
+  // CENTRALIZED STATE - Load from localStorage with mock data as fallback
+  const [financeData, setFinanceData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.finance, MOCK_FINANCE)
+  );
+  const [unitsData, setUnitsData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.units, MOCK_UNITS)
+  );
+  const [maintenanceData, setMaintenanceData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.maintenance, MOCK_MAINTENANCE)
+  );
+  const [suppliersData, setSuppliersData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.suppliers, MOCK_SUPPLIERS)
+  );
+  const [documentsData, setDocumentsData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.documents, MOCK_DOCUMENTS)
+  );
+  const [infractionsData, setInfractionsData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.infractions, MOCK_INFRACTIONS)
+  );
+  const [usersData, setUsersData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.users, MOCK_SYSTEM_USERS)
+  );
+  const [regimentData, setRegimentData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.regiment, MOCK_REGIMENT_RULES)
+  );
+  const [tenantsData, setTenantsData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.tenants, TENANTS)
+  );
+  const [residentsData, setResidentsData] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.residents, MOCK_RESIDENTS)
+  );
+
+  // Auto-save to localStorage when data changes
+  useEffect(() => { saveToStorage(STORAGE_KEYS.finance, financeData); }, [financeData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.units, unitsData); }, [unitsData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.maintenance, maintenanceData); }, [maintenanceData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.suppliers, suppliersData); }, [suppliersData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.documents, documentsData); }, [documentsData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.infractions, infractionsData); }, [infractionsData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.users, usersData); }, [usersData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.regiment, regimentData); }, [regimentData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.tenants, tenantsData); }, [tenantsData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.residents, residentsData); }, [residentsData]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.notifications, notifications); }, [notifications]);
 
   // Check for expired documents and add notifications
   useEffect(() => {
