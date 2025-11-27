@@ -107,7 +107,7 @@ const TENANTS = [
 ];
 
 // Components
-const Card = ({ title, children, className = '', action = null }: { title: string, children: React.ReactNode, className?: string, action?: React.ReactNode }) => (
+const Card = ({ title, children, className = '', action = null }: { title: string, children?: React.ReactNode, className?: string, action?: React.ReactNode }) => (
   <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200 ${className}`}>
     <div className="flex justify-between items-center mb-6">
       <h3 className="font-semibold text-slate-800 text-lg">{title}</h3>
@@ -2052,6 +2052,7 @@ const App = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
   const [currentTenantId, setCurrentTenantId] = useState(1);
   const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Notification State
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -2129,7 +2130,10 @@ const App = () => {
 
   const NavItem = ({ view, icon: Icon, label }: { view: ViewState, icon: any, label: string }) => (
     <button
-      onClick={() => setCurrentView(view)}
+      onClick={() => {
+        setCurrentView(view);
+        setIsMobileMenuOpen(false);
+      }}
       className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
         currentView === view 
           ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' 
@@ -2143,8 +2147,16 @@ const App = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans text-slate-900">
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-20 lg:hidden animate-in fade-in duration-200"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 bg-slate-900 text-white flex-shrink-0 fixed h-full z-20 hidden lg:flex flex-col">
+      <aside className={`w-72 bg-slate-900 text-white flex-shrink-0 fixed h-full z-30 transition-transform duration-300 flex flex-col ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0 lg:static'}`}>
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
             <div className="bg-indigo-600 p-2.5 rounded-lg shadow-lg shadow-indigo-500/30">
@@ -2156,7 +2168,7 @@ const App = () => {
             </div>
           </div>
 
-          <nav className="space-y-1.5">
+          <nav className="space-y-1.5 overflow-y-auto max-h-[calc(100vh-200px)]">
             <NavItem view="dashboard" icon={PieChart} label="Visão Geral" />
             <div className="pt-4 pb-2 px-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Principal</div>
             <NavItem view="units" icon={User} label="Unidades" />
@@ -2185,37 +2197,46 @@ const App = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-72 flex flex-col min-h-screen">
+      <main className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
         {/* Header */}
-        <header className="h-20 bg-white border-b border-slate-200 sticky top-0 z-10 px-8 flex items-center justify-between shadow-sm">
-          <div className="relative">
+        <header className="h-20 bg-white border-b border-slate-200 sticky top-0 z-10 px-4 md:px-8 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
              <button 
-                onClick={() => setIsTenantDropdownOpen(!isTenantDropdownOpen)}
-                className="flex items-center gap-2 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="lg:hidden p-2 -ml-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg"
              >
-                <div className="text-left">
-                   <h2 className="font-bold text-slate-800 leading-tight">{currentTenant.name}</h2>
-                   <p className="text-xs text-slate-500">{currentTenant.cnpj}</p>
-                </div>
-                <ChevronDown size={16} className="text-slate-400" />
+                <Menu size={24} />
              </button>
+             
+             <div className="relative">
+                <button 
+                    onClick={() => setIsTenantDropdownOpen(!isTenantDropdownOpen)}
+                    className="flex items-center gap-2 hover:bg-slate-50 p-2 rounded-lg transition-colors"
+                >
+                    <div className="text-left">
+                    <h2 className="font-bold text-slate-800 leading-tight text-sm md:text-base">{currentTenant.name}</h2>
+                    <p className="text-xs text-slate-500 hidden md:block">{currentTenant.cnpj}</p>
+                    </div>
+                    <ChevronDown size={16} className="text-slate-400" />
+                </button>
 
-             {isTenantDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-100">
-                   {tenantsData.map(t => (
-                      <button 
-                         key={t.id}
-                         onClick={() => {
-                            setCurrentTenantId(t.id);
-                            setIsTenantDropdownOpen(false);
-                         }}
-                         className={`w-full text-left px-4 py-3 hover:bg-slate-50 text-sm ${currentTenantId === t.id ? 'font-semibold text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
-                      >
-                         {t.name}
-                      </button>
-                   ))}
-                </div>
-             )}
+                {isTenantDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 animate-in fade-in zoom-in-95 duration-100">
+                    {tenantsData.map(t => (
+                        <button 
+                            key={t.id}
+                            onClick={() => {
+                                setCurrentTenantId(t.id);
+                                setIsTenantDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-slate-50 text-sm ${currentTenantId === t.id ? 'font-semibold text-indigo-600 bg-indigo-50' : 'text-slate-700'}`}
+                        >
+                            {t.name}
+                        </button>
+                    ))}
+                    </div>
+                )}
+             </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -2260,7 +2281,7 @@ const App = () => {
         </header>
 
         {/* View Content */}
-        <div className="p-8">
+        <div className="p-4 md:p-8 overflow-x-hidden">
           {renderView()}
         </div>
       </main>
