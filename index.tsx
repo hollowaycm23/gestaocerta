@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { 
   DollarSign, 
@@ -57,12 +57,12 @@ const MOCK_RESIDENTS = [
 ];
 
 const MOCK_FINANCE = [
-  { id: 1, type: 'income', status: 'paid', amount: 2500, desc: 'Aluguel 101', category: 'Aluguel', date: '2023-11-05' },
-  { id: 2, type: 'expense', status: 'paid', amount: 350, desc: 'Material Limpeza', category: 'Serviços', date: '2023-11-10' },
-  { id: 3, type: 'expense', status: 'pending', amount: 1200, desc: 'Manutenção Elevador', category: 'Manutenção', date: '2023-11-25' },
-  { id: 4, type: 'income', status: 'paid', amount: 2500, desc: 'Aluguel 104', category: 'Aluguel', date: '2023-11-05' },
-  { id: 5, type: 'income', status: 'pending', amount: 2500, desc: 'Aluguel 105', category: 'Aluguel', date: '2023-12-05' },
-  { id: 6, type: 'expense', status: 'overdue', amount: 500, desc: 'Conta de Luz', category: 'Utilidades', date: '2023-11-15' },
+  { id: 1, type: 'income', status: 'paid', amount: 2500, desc: 'Aluguel 101', category: 'Aluguel', date: '2023-11-05', supplier: '' },
+  { id: 2, type: 'expense', status: 'paid', amount: 350, desc: 'Material Limpeza', category: 'Serviços', date: '2023-11-10', supplier: 'PoolService' },
+  { id: 3, type: 'expense', status: 'pending', amount: 1200, desc: 'Manutenção Elevador', category: 'Manutenção', date: '2023-11-25', supplier: 'TechElevators' },
+  { id: 4, type: 'income', status: 'paid', amount: 2500, desc: 'Aluguel 104', category: 'Aluguel', date: '2023-11-05', supplier: '' },
+  { id: 5, type: 'income', status: 'pending', amount: 2500, desc: 'Aluguel 105', category: 'Aluguel', date: '2023-12-05', supplier: '' },
+  { id: 6, type: 'expense', status: 'overdue', amount: 500, desc: 'Conta de Luz', category: 'Utilidades', date: '2023-11-15', supplier: 'Enel' },
 ];
 
 const MOCK_MAINTENANCE = [
@@ -104,9 +104,9 @@ const MOCK_SYSTEM_USERS = [
 ];
 
 const MOCK_DOCUMENTS = [
-  { id: 1, title: 'AVCB - Auto de Vistoria', category: 'Legal', date: '2023-05-10', expiry: '2024-05-10', status: 'valid', fileData: null, fileType: null },
+  { id: 1, title: 'AVCB - Auto de Vistoria', category: 'Legal', date: '2023-05-10', expiry: '2023-11-01', status: 'expired', fileData: null, fileType: null }, // Expired for testing
   { id: 2, title: 'Apólice de Seguro Predial', category: 'Seguros', date: '2023-01-15', expiry: '2024-01-15', status: 'valid', fileData: null, fileType: null },
-  { id: 3, title: 'Laudo SPDA (Para-raios)', category: 'Manutenção', date: '2022-10-20', expiry: '2023-10-20', status: 'expired', fileData: null, fileType: null },
+  { id: 3, title: 'Laudo SPDA (Para-raios)', category: 'Manutenção', date: '2022-10-20', expiry: '2023-12-10', status: 'expiring_soon', fileData: null, fileType: null }, // Soon
   { id: 4, title: 'Planta Hidráulica', category: 'Plantas', date: '2010-01-01', expiry: '', status: 'permanent', fileData: null, fileType: null },
 ];
 
@@ -165,6 +165,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     inactive: 'bg-slate-100 text-slate-600 border-slate-200',
     valid: 'bg-emerald-100 text-emerald-700 border-emerald-200',
     expired: 'bg-red-100 text-red-700 border-red-200',
+    expiring_soon: 'bg-amber-100 text-amber-700 border-amber-200',
     permanent: 'bg-indigo-100 text-indigo-700 border-indigo-200',
     awaiting_defense: 'bg-amber-100 text-amber-700 border-amber-200',
     fined: 'bg-red-100 text-red-700 border-red-200',
@@ -177,7 +178,7 @@ const StatusBadge = ({ status }: { status: string }) => {
     completed: 'Concluído', scheduled: 'Agendado', cancelled: 'Cancelada',
     high: 'Alta', medium: 'Média', low: 'Baixa',
     active: 'Ativo', inactive: 'Inativo',
-    valid: 'Vigente', expired: 'Vencido', permanent: 'Permanente',
+    valid: 'Vigente', expired: 'Vencido', expiring_soon: 'A Vencer', permanent: 'Permanente',
     awaiting_defense: 'Aguardando Defesa', fined: 'Multado', appealing: 'Em Recurso'
   };
 
@@ -215,7 +216,8 @@ const DashboardView = ({
   data: {
     finance: typeof MOCK_FINANCE,
     units: typeof MOCK_UNITS,
-    maintenance: typeof MOCK_MAINTENANCE
+    maintenance: typeof MOCK_MAINTENANCE,
+    documents: typeof MOCK_DOCUMENTS
   }
 }) => {
   const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null);
@@ -260,6 +262,25 @@ const DashboardView = ({
     return { count: occupied, rate };
   }, [data.units]);
 
+  const documentStats = useMemo(() => {
+    const now = new Date();
+    const warningDate = new Date();
+    warningDate.setDate(now.getDate() + 30); // 30 days notice
+
+    const expired = data.documents.filter(d => {
+        if (!d.expiry) return false;
+        return new Date(d.expiry) < now;
+    }).length;
+
+    const expiringSoon = data.documents.filter(d => {
+        if (!d.expiry) return false;
+        const expDate = new Date(d.expiry);
+        return expDate >= now && expDate <= warningDate;
+    }).length;
+
+    return { expired, expiringSoon, totalCritical: expired + expiringSoon };
+  }, [data.documents]);
+
   return (
     <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -292,11 +313,18 @@ const DashboardView = ({
             trendType={maintenanceStats.pending > 2 ? "down" : "up"} 
         />
         <StatCard 
+            title="Documentos" 
+            value={`${documentStats.totalCritical}`} 
+            trend={documentStats.expired > 0 ? `${documentStats.expired} Vencidos!` : `${documentStats.expiringSoon} a vencer`} 
+            icon={FileText} 
+            trendType={documentStats.totalCritical > 0 ? "down" : "neutral"} 
+        />
+        <StatCard 
             title="Ocupação" 
-            value={`${occupancyStats.count} Unidades`} 
-            trend={`${occupancyStats.rate}% do total`} 
+            value={`${occupancyStats.count}`} 
+            trend={`${occupancyStats.rate}%`} 
             icon={Building2} 
-            trendType="up" 
+            trendType="neutral" 
         />
       </div>
 
@@ -593,7 +621,7 @@ const ResidentsView = ({
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-slate-800">Moradores</h2>
         <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 transition-colors shadow-sm">
-          <Plus size={18} /> Novo Morador
+          <Plus size={18} /> Nova Morador
         </button>
       </div>
 
@@ -706,16 +734,18 @@ const ResidentsView = ({
 
 const FinanceView = ({ 
   data, 
-  onUpdate 
+  onUpdate,
+  suppliers
 }: { 
   data: typeof MOCK_FINANCE, 
-  onUpdate: (data: typeof MOCK_FINANCE) => void 
+  onUpdate: (data: typeof MOCK_FINANCE) => void,
+  suppliers: typeof MOCK_SUPPLIERS
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'payable' | 'receivable'>('all');
   const [showReportModal, setShowReportModal] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
-  const [newEntry, setNewEntry] = useState({ desc: '', amount: '', type: 'expense', category: 'Outros', date: new Date().toISOString().split('T')[0] });
+  const [newEntry, setNewEntry] = useState({ desc: '', amount: '', type: 'expense', category: 'Outros', date: new Date().toISOString().split('T')[0], supplier: '' });
   const [reportFormat, setReportFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
   
   const financeStats = useMemo(() => {
@@ -748,11 +778,12 @@ const FinanceView = ({
       type: newEntry.type,
       category: newEntry.category,
       status: 'pending',
-      date: newEntry.date || new Date().toISOString()
+      date: newEntry.date || new Date().toISOString(),
+      supplier: newEntry.type === 'expense' ? newEntry.supplier : undefined
     }, ...data]);
     
     setIsFormOpen(false);
-    setNewEntry({ desc: '', amount: '', type: 'expense', category: 'Outros', date: new Date().toISOString().split('T')[0] });
+    setNewEntry({ desc: '', amount: '', type: 'expense', category: 'Outros', date: new Date().toISOString().split('T')[0], supplier: '' });
   }
 
   const handleStatusChange = (id: number, newStatus: string) => {
@@ -885,7 +916,14 @@ const FinanceView = ({
                     <div className={`p-1.5 rounded-full ${f.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
                       {f.type === 'income' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
                     </div>
-                    {f.desc}
+                    <div>
+                      <div>{f.desc}</div>
+                      {f.supplier && (
+                         <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                            <Truck size={12} /> {f.supplier}
+                         </div>
+                      )}
+                    </div>
                   </div>
                 </td>
                 <td className="p-4 text-slate-500">{f.category}</td>
@@ -1026,6 +1064,23 @@ const FinanceView = ({
                    />
                 </div>
              </div>
+
+             {newEntry.type === 'expense' && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fornecedor (Opcional)</label>
+                  <select
+                     value={newEntry.supplier}
+                     onChange={e => setNewEntry({...newEntry, supplier: e.target.value})}
+                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
+                  >
+                     <option value="">Selecione...</option>
+                     {suppliers.map(s => (
+                        <option key={s.id} value={s.name}>{s.name} - {s.category}</option>
+                     ))}
+                  </select>
+                </div>
+             )}
+
              <button 
                onClick={handleSaveEntry}
                className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
@@ -1033,412 +1088,6 @@ const FinanceView = ({
                Salvar Lançamento
              </button>
           </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-const MaintenanceView = ({ 
-  data, 
-  onUpdate 
-}: { 
-  data: typeof MOCK_MAINTENANCE, 
-  onUpdate: (data: typeof MOCK_MAINTENANCE) => void 
-}) => {
-  const [filter, setFilter] = useState<'all' | 'pending'>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [openActionMenuId, setOpenActionMenuId] = useState<number | null>(null);
-  const [newItem, setNewItem] = useState({ item: '', date: '', type: 'Preventiva', priority: 'medium', assignee: '', validUntil: '' });
-
-  const filteredData = filter === 'all' ? data : data.filter(m => m.status === 'pending');
-
-  const handleSave = () => {
-    if (editingItem) {
-      onUpdate(data.map(m => m.id === editingItem.id ? { ...m, ...newItem, status: m.status } : m));
-    } else {
-      onUpdate([...data, { id: Date.now(), ...newItem, status: 'pending' }]);
-    }
-    setIsModalOpen(false);
-    setNewItem({ item: '', date: '', type: 'Preventiva', priority: 'medium', assignee: '', validUntil: '' });
-  };
-
-  const handleAction = (id: number, action: 'edit' | 'complete' | 'cancel' | 'schedule' | 'pending') => {
-    if (action === 'edit') {
-      const item = data.find(m => m.id === id);
-      if (item) {
-        setEditingItem(item);
-        setNewItem({ 
-           item: item.item, 
-           date: item.date, 
-           type: item.type, 
-           priority: item.priority, 
-           assignee: item.assignee, 
-           validUntil: item.validUntil || '' 
-        });
-        setIsModalOpen(true);
-      }
-    } else {
-      const statusMap: Record<string, string> = { 
-        complete: 'completed', 
-        cancel: 'cancelled', 
-        schedule: 'scheduled',
-        pending: 'pending'
-      };
-      onUpdate(data.map(m => m.id === id ? { ...m, status: statusMap[action] } : m));
-    }
-    setOpenActionMenuId(null);
-  };
-
-  const handleOpenModal = () => {
-    setEditingItem(null);
-    setNewItem({ item: '', date: '', type: 'Preventiva', priority: 'medium', assignee: '', validUntil: '' });
-    setIsModalOpen(true);
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Plano de Manutenção</h2>
-        <button onClick={handleOpenModal} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-          <Plus size={18} /> Nova O.S.
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-         <div className="border-b border-slate-100 p-4">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Todas
-            </button>
-            <button 
-               onClick={() => setFilter('pending')}
-               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'pending' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Pendentes
-            </button>
-          </div>
-        </div>
-        <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-            <tr>
-              <th className="p-4 pl-6 font-medium">Item</th>
-              <th className="p-4 font-medium">Data Programada</th>
-              <th className="p-4 font-medium">Tipo</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium text-right pr-6">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredData.map((m) => (
-              <tr key={m.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 pl-6">
-                  <div className="font-medium text-slate-800">{m.item}</div>
-                  <div className="text-xs text-slate-500">{m.assignee}</div>
-                </td>
-                <td className="p-4 text-slate-500">{new Date(m.date).toLocaleDateString('pt-BR')}</td>
-                <td className="p-4 text-slate-500">{m.type}</td>
-                <td className="p-4"><StatusBadge status={m.status} /></td>
-                <td className="p-4 text-right pr-6 relative">
-                   <button 
-                     onClick={() => setOpenActionMenuId(openActionMenuId === m.id ? null : m.id)}
-                     className="p-1.5 hover:bg-slate-200 rounded-md text-slate-500 hover:text-slate-700 transition-colors"
-                   >
-                     <Settings size={16} />
-                   </button>
-                   {openActionMenuId === m.id && (
-                     <div className="absolute right-8 top-8 z-10 w-36 bg-white rounded-lg shadow-xl border border-slate-100 py-1 animate-in fade-in zoom-in-95 duration-100">
-                       <button onClick={() => handleAction(m.id, 'edit')} className="w-full text-left px-4 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50">Editar</button>
-                       <button onClick={() => handleAction(m.id, 'schedule')} className="w-full text-left px-4 py-2 text-xs font-medium text-blue-600 hover:bg-blue-50">Agendar</button>
-                       <button onClick={() => handleAction(m.id, 'pending')} className="w-full text-left px-4 py-2 text-xs font-medium text-amber-600 hover:bg-amber-50">Pendente</button>
-                       <button onClick={() => handleAction(m.id, 'complete')} className="w-full text-left px-4 py-2 text-xs font-medium text-emerald-600 hover:bg-emerald-50">Concluir</button>
-                       <button onClick={() => handleAction(m.id, 'cancel')} className="w-full text-left px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50">Cancelar</button>
-                     </div>
-                   )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-       {isModalOpen && (
-        <Modal title={editingItem ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"} onClose={() => setIsModalOpen(false)}>
-          <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Item / Ativo</label>
-               <input 
-                 type="text" 
-                 value={newItem.item}
-                 onChange={e => setNewItem({...newItem, item: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                 placeholder="Ex: Bomba da Piscina" 
-               />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Data Execução</label>
-                   <input 
-                     type="date" 
-                     value={newItem.date}
-                     onChange={e => setNewItem({...newItem, date: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
-                   <select 
-                     value={newItem.type}
-                     onChange={e => setNewItem({...newItem, type: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                   >
-                     <option value="Preventiva">Preventiva</option>
-                     <option value="Corretiva">Corretiva</option>
-                     <option value="Rotina">Rotina</option>
-                   </select>
-                </div>
-             </div>
-             {newItem.type === 'Preventiva' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Validade Legal (Opcional)</label>
-                  <input 
-                     type="date" 
-                     value={newItem.validUntil}
-                     onChange={e => setNewItem({...newItem, validUntil: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-             )}
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Fornecedor / Responsável</label>
-                <select 
-                   value={newItem.assignee}
-                   onChange={e => setNewItem({...newItem, assignee: e.target.value})}
-                   className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                >
-                  <option value="">Selecione...</option>
-                  {MOCK_SUPPLIERS.map(s => (
-                    <option key={s.id} value={s.name}>{s.name} ({s.category})</option>
-                  ))}
-                  <option value="Zelador">Zelador</option>
-                  <option value="Porteiro">Porteiro</option>
-                </select>
-             </div>
-             <button 
-               onClick={handleSave}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-             >
-               Salvar O.S.
-             </button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-};
-
-const SuppliersView = ({ data, onUpdate }: { data: typeof MOCK_SUPPLIERS, onUpdate: (data: typeof MOCK_SUPPLIERS) => void }) => {
-  const [filter, setFilter] = useState<'all' | 'active' | 'inactive'>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [contractModal, setContractModal] = useState<any>(null);
-  const [newItem, setNewItem] = useState({ 
-    name: '', category: '', contact: '', service: '', 
-    contractStart: '', contractEnd: '', status: 'active' 
-  });
-
-  const filteredData = filter === 'all' ? data : data.filter(s => s.status === filter);
-
-  const handleOpenModal = (item?: any) => {
-    if (item) {
-      setEditingItem(item);
-      setNewItem({ ...item });
-    } else {
-      setEditingItem(null);
-      setNewItem({ name: '', category: '', contact: '', service: '', contractStart: '', contractEnd: '', status: 'active' });
-    }
-    setIsModalOpen(true);
-  };
-
-  const handleSave = () => {
-    if (editingItem) {
-      onUpdate(data.map(s => s.id === editingItem.id ? { ...s, ...newItem } : s));
-    } else {
-      onUpdate([...data, { id: Date.now(), ...newItem }]);
-    }
-    setIsModalOpen(false);
-  };
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Fornecedores</h2>
-        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
-          <Plus size={18} /> Nova Fornecedor
-        </button>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200">
-         <div className="border-b border-slate-100 p-4">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Todos
-            </button>
-            <button 
-               onClick={() => setFilter('active')}
-               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'active' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Ativos
-            </button>
-             <button 
-               onClick={() => setFilter('inactive')}
-               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'inactive' ? 'bg-slate-100 text-slate-700' : 'text-slate-600 hover:text-slate-900'}`}
-            >
-              Inativos
-            </button>
-          </div>
-        </div>
-
-        <table className="w-full text-sm text-left">
-          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
-            <tr>
-              <th className="p-4 pl-6 font-medium">Nome</th>
-              <th className="p-4 font-medium">Categoria</th>
-              <th className="p-4 font-medium">Contato</th>
-              <th className="p-4 font-medium">Vigência</th>
-              <th className="p-4 font-medium">Status</th>
-              <th className="p-4 font-medium text-right pr-6">Ações</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {filteredData.map((s) => (
-              <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 pl-6 font-medium text-slate-800">
-                  <div>{s.name}</div>
-                  <div className="text-xs text-slate-500">{s.service}</div>
-                </td>
-                <td className="p-4 text-slate-500">{s.category}</td>
-                <td className="p-4 text-slate-500">{s.contact}</td>
-                <td className="p-4 text-slate-500">
-                  {s.contractStart ? `${new Date(s.contractStart).toLocaleDateString('pt-BR')} - ${new Date(s.contractEnd).toLocaleDateString('pt-BR')}` : '-'}
-                </td>
-                <td className="p-4"><StatusBadge status={s.status} /></td>
-                <td className="p-4 text-right pr-6 space-x-2">
-                  <button onClick={() => setContractModal(s)} className="text-indigo-600 hover:text-indigo-800 font-medium text-xs">Contrato</button>
-                  <button onClick={() => handleOpenModal(s)} className="text-slate-600 hover:text-slate-800 font-medium text-xs">Editar</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-       {isModalOpen && (
-        <Modal title={editingItem ? "Editar Fornecedor" : "Novo Fornecedor"} onClose={() => setIsModalOpen(false)}>
-          <div className="space-y-4">
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Empresa</label>
-               <input 
-                 type="text" 
-                 value={newItem.name}
-                 onChange={e => setNewItem({...newItem, name: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
-                   <input 
-                     type="text" 
-                     value={newItem.category}
-                     onChange={e => setNewItem({...newItem, category: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Serviço Principal</label>
-                   <input 
-                     type="text" 
-                     value={newItem.service}
-                     onChange={e => setNewItem({...newItem, service: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-             </div>
-             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">Contato (Tel/Email)</label>
-               <input 
-                 type="text" 
-                 value={newItem.contact}
-                 onChange={e => setNewItem({...newItem, contact: e.target.value})}
-                 className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-               />
-             </div>
-             <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Início Contrato</label>
-                   <input 
-                     type="date" 
-                     value={newItem.contractStart}
-                     onChange={e => setNewItem({...newItem, contractStart: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Fim Contrato</label>
-                   <input 
-                     type="date" 
-                     value={newItem.contractEnd}
-                     onChange={e => setNewItem({...newItem, contractEnd: e.target.value})}
-                     className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                   />
-                </div>
-             </div>
-             <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                <select 
-                   value={newItem.status}
-                   onChange={e => setNewItem({...newItem, status: e.target.value})}
-                   className="w-full p-2 bg-white border border-slate-200 rounded-lg"
-                >
-                  <option value="active">Ativo</option>
-                  <option value="inactive">Inativo</option>
-                </select>
-             </div>
-             <button 
-               onClick={handleSave}
-               className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2"
-             >
-               Salvar
-             </button>
-          </div>
-        </Modal>
-      )}
-
-      {contractModal && (
-        <Modal title={`Contrato - ${contractModal.name}`} onClose={() => setContractModal(null)}>
-           <div className="space-y-4">
-              <div className="bg-slate-50 p-4 rounded-lg border border-slate-100">
-                <p className="text-sm text-slate-600"><span className="font-semibold">Objeto:</span> Prestação de serviços de {contractModal.service}</p>
-                <p className="text-sm text-slate-600 mt-2"><span className="font-semibold">Vigência:</span> {contractModal.contractStart} até {contractModal.contractEnd}</p>
-                <p className="text-sm text-slate-600 mt-2"><span className="font-semibold">Contato:</span> {contractModal.contact}</p>
-              </div>
-              <div className="flex justify-end">
-                <button 
-                    onClick={() => alert(`Simulando download do contrato: ${contractModal.name}.pdf`)} 
-                    className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
-                >
-                    Baixar PDF do Contrato
-                </button>
-              </div>
-           </div>
         </Modal>
       )}
     </div>
@@ -1453,8 +1102,41 @@ const DocumentsView = ({
   onUpdate: (data: typeof MOCK_DOCUMENTS) => void 
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newDoc, setNewDoc] = useState({ title: '', category: 'Legal', expiry: '', file: null as File | null });
+  const [newDoc, setNewDoc] = useState({ title: '', category: 'Legal', expiry: '', file: null as File | null, isPermanent: false });
   const [viewingDoc, setViewingDoc] = useState<any>(null);
+
+  // Recalculate status of existing documents when component mounts or data updates
+  useEffect(() => {
+     // Helper to calculate status
+     const calculateStatus = (expiry: string, status: string) => {
+        if (status === 'permanent') return 'permanent'; // Do not touch permanent docs
+        if (!expiry) return 'permanent'; // Safety fallback
+        
+        const now = new Date();
+        const expDate = new Date(expiry);
+        const warningDate = new Date();
+        warningDate.setDate(now.getDate() + 30); // 30 days notice
+
+        if (expDate < now) return 'expired';
+        if (expDate <= warningDate) return 'expiring_soon';
+        return 'valid';
+     };
+
+     // Check if any status needs update
+     let needsUpdate = false;
+     const updatedData = data.map(doc => {
+         const calculated = calculateStatus(doc.expiry, doc.status);
+         if (doc.status !== calculated) {
+             needsUpdate = true;
+             return { ...doc, status: calculated };
+         }
+         return doc;
+     });
+
+     if (needsUpdate) {
+         onUpdate(updatedData);
+     }
+  }, [data]); // Depend on data to re-evaluate
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -1471,20 +1153,33 @@ const DocumentsView = ({
       const base64String = reader.result as string;
       const fileType = newDoc.file?.type;
       
+      let status = 'valid';
+      if (newDoc.isPermanent) {
+          status = 'permanent';
+      } else if (newDoc.expiry) {
+          const now = new Date();
+          const expDate = new Date(newDoc.expiry);
+          const warningDate = new Date();
+          warningDate.setDate(now.getDate() + 30);
+
+          if (expDate < now) status = 'expired';
+          else if (expDate <= warningDate) status = 'expiring_soon';
+      }
+
       const newItem = {
         id: Date.now(),
         title: newDoc.title,
         category: newDoc.category,
         date: new Date().toISOString().split('T')[0],
-        expiry: newDoc.expiry || '',
-        status: 'valid',
+        expiry: newDoc.isPermanent ? '' : newDoc.expiry,
+        status: status,
         fileData: base64String,
         fileType: fileType
       };
 
       onUpdate([...data, newItem]);
       setIsModalOpen(false);
-      setNewDoc({ title: '', category: 'Legal', expiry: '', file: null });
+      setNewDoc({ title: '', category: 'Legal', expiry: '', file: null, isPermanent: false });
     };
     reader.readAsDataURL(newDoc.file);
   };
@@ -1517,6 +1212,7 @@ const DocumentsView = ({
             <div className="text-xs text-slate-400 space-y-1 mb-4">
               <p>Emissão: {new Date(doc.date).toLocaleDateString('pt-BR')}</p>
               {doc.expiry && <p>Validade: {new Date(doc.expiry).toLocaleDateString('pt-BR')}</p>}
+              {doc.status === 'permanent' && <p>Validade: Indeterminada</p>}
             </div>
 
             <div className="flex gap-2 border-t border-slate-100 pt-3">
@@ -1565,13 +1261,27 @@ const DocumentsView = ({
                 </select>
              </div>
              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Validade (Opcional)</label>
-                <input 
-                   type="date" 
-                   value={newDoc.expiry}
-                   onChange={e => setNewDoc({...newDoc, expiry: e.target.value})}
-                   className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
-                 />
+                <div className="flex items-center gap-2 mb-2">
+                   <input 
+                      type="checkbox" 
+                      id="isPermanent"
+                      checked={newDoc.isPermanent}
+                      onChange={e => setNewDoc({...newDoc, isPermanent: e.target.checked})}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                   />
+                   <label htmlFor="isPermanent" className="text-sm font-medium text-slate-700">Documento Permanente (Sem Validade)</label>
+                </div>
+                {!newDoc.isPermanent && (
+                   <div>
+                     <label className="block text-sm font-medium text-slate-700 mb-1">Validade</label>
+                     <input 
+                        type="date" 
+                        value={newDoc.expiry}
+                        onChange={e => setNewDoc({...newDoc, expiry: e.target.value})}
+                        className="w-full p-2 bg-white border border-slate-200 rounded-lg" 
+                     />
+                   </div>
+                )}
              </div>
              <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Arquivo</label>
@@ -2022,6 +1732,356 @@ const InfractionsView = ({
   );
 };
 
+const MaintenanceView = ({ 
+  data, 
+  onUpdate 
+}: { 
+  data: typeof MOCK_MAINTENANCE, 
+  onUpdate: (data: typeof MOCK_MAINTENANCE) => void 
+}) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [formData, setFormData] = useState({ 
+    item: '', 
+    date: '', 
+    status: 'pending', 
+    type: 'Preventiva', 
+    priority: 'medium', 
+    assignee: '', 
+    validUntil: '' 
+  });
+
+  const handleOpenModal = (item?: any) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData({ 
+        item: item.item, 
+        date: item.date, 
+        status: item.status, 
+        type: item.type, 
+        priority: item.priority, 
+        assignee: item.assignee, 
+        validUntil: item.validUntil 
+      });
+    } else {
+      setEditingItem(null);
+      setFormData({ 
+        item: '', 
+        date: '', 
+        status: 'pending', 
+        type: 'Preventiva', 
+        priority: 'medium', 
+        assignee: '', 
+        validUntil: '' 
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (editingItem) {
+      onUpdate(data.map(m => m.id === editingItem.id ? { ...m, ...formData } : m));
+    } else {
+      onUpdate([...data, { id: Date.now(), ...formData }]);
+    }
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Manutenção</h2>
+        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+          <Plus size={18} /> Nova Manutenção
+        </button>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="text-slate-500 font-medium border-b border-slate-100 bg-slate-50/50">
+            <tr>
+              <th className="p-4 pl-6 font-medium">Item</th>
+              <th className="p-4 font-medium">Tipo</th>
+              <th className="p-4 font-medium">Data</th>
+              <th className="p-4 font-medium">Prioridade</th>
+              <th className="p-4 font-medium">Status</th>
+              <th className="p-4 font-medium">Responsável</th>
+              <th className="p-4 font-medium text-right pr-6">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {data.map((m) => (
+              <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                <td className="p-4 pl-6 font-medium text-slate-800">{m.item}</td>
+                <td className="p-4 text-slate-600">{m.type}</td>
+                <td className="p-4 text-slate-600">{new Date(m.date).toLocaleDateString('pt-BR')}</td>
+                <td className="p-4"><StatusBadge status={m.priority} /></td>
+                <td className="p-4"><StatusBadge status={m.status} /></td>
+                <td className="p-4 text-slate-600">{m.assignee}</td>
+                <td className="p-4 text-right pr-6">
+                  <button onClick={() => handleOpenModal(m)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {isModalOpen && (
+        <Modal title={editingItem ? "Editar Manutenção" : "Nova Manutenção"} onClose={() => setIsModalOpen(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Item / Equipamento</label>
+              <input 
+                type="text" 
+                value={formData.item} 
+                onChange={(e) => setFormData({ ...formData, item: e.target.value })}
+                className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Tipo</label>
+                <select 
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
+                >
+                  <option>Preventiva</option>
+                  <option>Corretiva</option>
+                  <option>Rotina</option>
+                </select>
+              </div>
+              <div>
+                 <label className="block text-sm font-medium text-slate-700 mb-1">Prioridade</label>
+                 <select 
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
+                 >
+                    <option value="low">Baixa</option>
+                    <option value="medium">Média</option>
+                    <option value="high">Alta</option>
+                 </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+               <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Data Programada</label>
+                  <input 
+                     type="date" 
+                     value={formData.date} 
+                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                     className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+                  />
+               </div>
+               <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                  <select 
+                     value={formData.status}
+                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                     className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
+                  >
+                     <option value="pending">Pendente</option>
+                     <option value="scheduled">Agendado</option>
+                     <option value="completed">Concluído</option>
+                     <option value="cancelled">Cancelado</option>
+                  </select>
+               </div>
+            </div>
+            <div>
+               <label className="block text-sm font-medium text-slate-700 mb-1">Responsável / Fornecedor</label>
+               <input 
+                  type="text" 
+                  value={formData.assignee} 
+                  onChange={(e) => setFormData({ ...formData, assignee: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+               />
+            </div>
+            
+            <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2">
+               Salvar
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+const SuppliersView = ({ 
+  data, 
+  onUpdate 
+}: { 
+  data: typeof MOCK_SUPPLIERS, 
+  onUpdate: (data: typeof MOCK_SUPPLIERS) => void 
+}) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    category: '', 
+    contact: '', 
+    contractStart: '', 
+    contractEnd: '', 
+    status: 'active', 
+    service: '' 
+  });
+
+  const handleOpenModal = (item?: any) => {
+    if (item) {
+      setEditingItem(item);
+      setFormData({ ...item });
+    } else {
+      setEditingItem(null);
+      setFormData({ 
+        name: '', 
+        category: '', 
+        contact: '', 
+        contractStart: '', 
+        contractEnd: '', 
+        status: 'active', 
+        service: '' 
+      });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSave = () => {
+    if (editingItem) {
+      onUpdate(data.map(s => s.id === editingItem.id ? { ...s, ...formData } : s));
+    } else {
+      onUpdate([...data, { id: Date.now(), ...formData }]);
+    }
+    setIsModalOpen(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Fornecedores</h2>
+        <button onClick={() => handleOpenModal()} className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2 shadow-sm">
+          <Plus size={18} /> Nova Fornecedor
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {data.map((s) => (
+          <div key={s.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+             <div className="flex justify-between items-start mb-4">
+                <div className="p-3 bg-indigo-50 rounded-lg text-indigo-600">
+                   <Truck size={24} />
+                </div>
+                <StatusBadge status={s.status} />
+             </div>
+             <h3 className="font-bold text-lg text-slate-800 mb-1">{s.name}</h3>
+             <p className="text-sm text-slate-500 mb-4">{s.category} • {s.service}</p>
+             
+             <div className="space-y-2 text-sm text-slate-600 mb-6">
+                <div className="flex items-center gap-2">
+                   <span className="text-slate-400">Contato:</span>
+                   <span className="font-medium">{s.contact}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                   <span className="text-slate-400">Contrato:</span>
+                   <span className="font-medium">
+                      {new Date(s.contractStart).toLocaleDateString('pt-BR')} até {new Date(s.contractEnd).toLocaleDateString('pt-BR')}
+                   </span>
+                </div>
+             </div>
+
+             <button 
+               onClick={() => handleOpenModal(s)}
+               className="w-full py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition-colors"
+             >
+               Editar Detalhes
+             </button>
+          </div>
+        ))}
+      </div>
+
+      {isModalOpen && (
+        <Modal title={editingItem ? "Editar Fornecedor" : "Novo Fornecedor"} onClose={() => setIsModalOpen(false)}>
+          <div className="space-y-4">
+             <div>
+               <label className="block text-sm font-medium text-slate-700 mb-1">Nome da Empresa</label>
+               <input 
+                  type="text" 
+                  value={formData.name} 
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+               />
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+                   <input 
+                      type="text" 
+                      value={formData.category} 
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+                   />
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Serviço Principal</label>
+                   <input 
+                      type="text" 
+                      value={formData.service} 
+                      onChange={(e) => setFormData({ ...formData, service: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+                   />
+                </div>
+             </div>
+             <div>
+               <label className="block text-sm font-medium text-slate-700 mb-1">Contato (Telefone/Email)</label>
+               <input 
+                  type="text" 
+                  value={formData.contact} 
+                  onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+               />
+             </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Início Contrato</label>
+                   <input 
+                      type="date" 
+                      value={formData.contractStart} 
+                      onChange={(e) => setFormData({ ...formData, contractStart: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+                   />
+                </div>
+                <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Fim Contrato</label>
+                   <input 
+                      type="date" 
+                      value={formData.contractEnd} 
+                      onChange={(e) => setFormData({ ...formData, contractEnd: e.target.value })}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-lg" 
+                   />
+                </div>
+             </div>
+             <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
+                <select 
+                   value={formData.status}
+                   onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                   className="w-full p-2.5 bg-white border border-slate-200 rounded-lg"
+                >
+                   <option value="active">Ativo</option>
+                   <option value="inactive">Inativo</option>
+                </select>
+             </div>
+             <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-medium hover:bg-indigo-700 mt-2">
+                Salvar
+             </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+};
+
 const SettingsView = ({
   usersData,
   onUpdateUsers,
@@ -2287,12 +2347,39 @@ const App = () => {
   const [tenantsData, setTenantsData] = useState(TENANTS);
   const [residentsData, setResidentsData] = useState(MOCK_RESIDENTS);
 
+  // Check for expired documents and add notifications
+  useEffect(() => {
+    const expiredDocs = documentsData.filter(d => {
+      if (!d.expiry || d.status === 'permanent') return false;
+      return new Date(d.expiry) < new Date();
+    });
+
+    if (expiredDocs.length > 0) {
+      // Check if we already notified to avoid infinite loop or duplicates of the same type
+      const hasNotification = notifications.some(n => n.title === 'Alerta de Documentos');
+      if (!hasNotification) {
+        setNotifications(prev => [{
+          id: Date.now(),
+          title: 'Alerta de Documentos',
+          message: `Existem ${expiredDocs.length} documentos vencidos que precisam de atenção.`,
+          time: 'Agora',
+          read: false
+        }, ...prev]);
+      }
+    }
+  }, [documentsData]);
+
   const renderView = () => {
     switch(currentView) {
       case 'dashboard': 
         return <DashboardView 
                   onNavigate={setCurrentView} 
-                  data={{ finance: financeData, units: unitsData, maintenance: maintenanceData }} 
+                  data={{ 
+                      finance: financeData, 
+                      units: unitsData, 
+                      maintenance: maintenanceData,
+                      documents: documentsData
+                  }} 
                />;
       case 'units': 
         return <UnitsView 
@@ -2309,6 +2396,7 @@ const App = () => {
         return <FinanceView 
                   data={financeData} 
                   onUpdate={setFinanceData} 
+                  suppliers={suppliersData}
                />;
       case 'maintenance': 
         return <MaintenanceView 
