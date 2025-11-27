@@ -51,6 +51,7 @@ const STORAGE_KEYS = {
   regiment: 'gestorcondo_regiment',
   tenants: 'gestorcondo_tenants',
   notifications: 'gestorcondo_notifications',
+  currentTenantId: 'gestorcondo_currentTenantId',
 };
 
 // LocalStorage Utility Functions
@@ -2354,7 +2355,9 @@ const SettingsView = ({
 
 const App = () => {
   const [currentView, setCurrentView] = useState<ViewState>('dashboard');
-  const [currentTenantId, setCurrentTenantId] = useState(1);
+  const [currentTenantId, setCurrentTenantId] = useState(() => 
+    loadFromStorage(STORAGE_KEYS.currentTenantId, 1)
+  );
   const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -2417,6 +2420,7 @@ const App = () => {
   useEffect(() => { saveToStorage(STORAGE_KEYS.tenants, tenantsData); }, [tenantsData]);
   useEffect(() => { saveToStorage(STORAGE_KEYS.residents, residentsData); }, [residentsData]);
   useEffect(() => { saveToStorage(STORAGE_KEYS.notifications, notifications); }, [notifications]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.currentTenantId, currentTenantId); }, [currentTenantId]);
 
   // Check for expired documents and add notifications
   useEffect(() => {

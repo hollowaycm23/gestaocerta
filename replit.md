@@ -37,7 +37,7 @@ GestorCondo 360 is a comprehensive condominium management system built with Reac
 9. **Settings**: System configuration and user management
 
 ### Data Model
-The application uses mock data for demonstration purposes. All data is stored in memory and defined in `index.tsx`:
+The application uses **localStorage** for data persistence. All data is automatically saved to the browser's local storage and loaded on startup:
 - Units: Building units with owner/tenant information
 - Residents: Personal information and contact details
 - Finances: Income and expense transactions
@@ -45,6 +45,10 @@ The application uses mock data for demonstration purposes. All data is stored in
 - Suppliers: Service providers and contracts
 - Documents: Legal and administrative documents
 - Infractions: Rule violations and fines
+- Users: System users and permissions
+- Notifications: System alerts and messages
+
+**Note**: Data is stored per browser. If you switch browsers or clear browser data, you'll start with the default demo data again.
 
 ## Environment Variables
 
