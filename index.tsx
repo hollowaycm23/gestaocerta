@@ -108,7 +108,7 @@ const MOCK_USERS = [
 
 const inputClass = "w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all";
 
-const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
+const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children?: React.ReactNode }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
@@ -169,7 +169,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   };
 
   const labels: any = {
-    paid: 'Pago',
+    paid: 'Adimplente',
     adimplente: 'Adimplente',
     active: 'Ativo',
     completed: 'Concluído',
@@ -287,6 +287,8 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
     </div>
   );
 
+  const [selectedMaintenance, setSelectedMaintenance] = useState<any>(null);
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-slate-800">Visão Geral</h2>
@@ -348,7 +350,7 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
-                  <tr><th className="p-3">Item</th><th className="p-3">Data</th><th className="p-3">Status</th></tr>
+                  <tr><th className="p-3">Item</th><th className="p-3">Data</th><th className="p-3">Status</th><th className="p-3">Ação</th></tr>
                 </thead>
                 <tbody>
                   {maintenance.slice(0, 5).map((item: any) => (
@@ -356,6 +358,7 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
                       <td className="p-3">{item.item}</td>
                       <td className="p-3">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
                       <td className="p-3"><StatusBadge status={item.status} /></td>
+                      <td className="p-3"><button onClick={() => setSelectedMaintenance(item)} className="text-indigo-600 hover:underline">Detalhes</button></td>
                     </tr>
                   ))}
                 </tbody>
@@ -385,6 +388,15 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
           </div>
         </Card>
       </div>
+
+      <Modal isOpen={!!selectedMaintenance} onClose={() => setSelectedMaintenance(null)} title="Detalhes da Manutenção">
+          <div className="space-y-4">
+              <div><p className="text-xs text-slate-500 uppercase">Item</p><p className="font-bold">{selectedMaintenance?.item}</p></div>
+              <div><p className="text-xs text-slate-500 uppercase">Data Programada</p><p className="font-bold">{selectedMaintenance && new Date(selectedMaintenance.date).toLocaleDateString('pt-BR')}</p></div>
+              <div><p className="text-xs text-slate-500 uppercase">Fornecedor</p><p className="font-bold">{selectedMaintenance?.supplier}</p></div>
+              <div><p className="text-xs text-slate-500 uppercase">Status</p><StatusBadge status={selectedMaintenance?.status || ''} /></div>
+          </div>
+      </Modal>
     </div>
   );
 };
@@ -599,7 +611,7 @@ const UnitsView = ({ data, onSave, residents }: any) => {
   }
 
   const handleSave = () => {
-      onSave(editing, true);
+      onSave(editing);
       setEditing(null);
   }
 
@@ -671,11 +683,13 @@ const ResidentsView = ({ data, onSave, onDelete }: any) => {
   const [editing, setEditing] = useState<any>(null);
 
   const handleSave = () => {
+      // Check if it's a new resident (no id) or updating existing
       if(editing.id && data.find((r:any) => r.id === editing.id)){
-          onSave(editing, true);
+          onSave(editing, true); // update
       } else {
+          // New resident
           const newId = Math.max(...data.map((r:any) => r.id), 0) + 1;
-          onSave({...editing, id: newId}, false);
+          onSave({...editing, id: newId}, false); // create
       }
       setEditing(null);
   };
@@ -734,6 +748,7 @@ const ResidentsView = ({ data, onSave, onDelete }: any) => {
 
 const MaintenanceView = ({ data, onSave, suppliers }: any) => {
   const [editing, setEditing] = useState<any>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const handleAction = (id: number, action: string) => {
       const item = data.find((i:any) => i.id === id);
@@ -754,13 +769,24 @@ const MaintenanceView = ({ data, onSave, suppliers }: any) => {
   }
 
   const handleSaveEdit = () => {
-      onSave(editing, !!editing.id);
+      onSave(editing, !!editing.id); // true if editing existing
       setEditing(null);
+  }
+
+  const handleGenerateReport = (filters: any) => {
+      alert(`Gerando relatório PDF de manutenção...\nPeríodo: ${filters.start} a ${filters.end}\nTipo: ${filters.type}`);
+      setShowReportModal(false);
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Plano de Manutenção</h2><button onClick={() => setEditing({ item: '', date: '', validUntil: '', type: 'Preventiva', status: 'pending', supplier: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Nova O.S.</button></div>
+      <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-slate-800">Plano de Manutenção</h2>
+          <div className="flex gap-2">
+            <button onClick={() => setShowReportModal(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2"><FileText size={18} /> Relatório</button>
+            <button onClick={() => setEditing({ item: '', date: '', validUntil: '', type: 'Preventiva', status: 'pending', supplier: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Nova O.S.</button>
+          </div>
+      </div>
       
       <div className="bg-white p-2 rounded-xl border border-slate-200 inline-flex gap-2">
           <button className="px-4 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium">Todas</button>
@@ -844,13 +870,50 @@ const MaintenanceView = ({ data, onSave, suppliers }: any) => {
               </div>
           </div>
       </Modal>
+
+      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Relatório de Manutenção">
+          <MaintenanceReportForm onGenerate={handleGenerateReport} />
+      </Modal>
     </div>
   );
 };
 
+const MaintenanceReportForm = ({ onGenerate }: any) => {
+    const [filters, setFilters] = useState({ start: '', end: '', type: 'all' });
+    
+    return (
+        <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Início</label>
+                    <input type="date" className={inputClass} value={filters.start} onChange={e => setFilters({...filters, start: e.target.value})} />
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fim</label>
+                    <input type="date" className={inputClass} value={filters.end} onChange={e => setFilters({...filters, end: e.target.value})} />
+                </div>
+            </div>
+            <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Tipo de Manutenção</label>
+                <select className={inputClass} value={filters.type} onChange={e => setFilters({...filters, type: e.target.value})}>
+                    <option value="all">Todas</option>
+                    <option value="Preventiva">Preventiva</option>
+                    <option value="Corretiva">Corretiva</option>
+                    <option value="Rotina">Rotina</option>
+                </select>
+            </div>
+            <div className="pt-4">
+                <button onClick={() => onGenerate(filters)} className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold hover:bg-indigo-700 flex items-center justify-center gap-2">
+                    <FileText size={18} /> Gerar PDF
+                </button>
+            </div>
+        </div>
+    )
+}
+
 const SuppliersView = ({ data, onSave }: any) => {
   const [editing, setEditing] = useState<any>(null);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('all'); // all, active, inactive
 
   const filteredData = data.filter((s:any) => {
       if(filter === 'active') return s.status === 'active';
@@ -971,6 +1034,7 @@ const InfractionsView = ({ data, onSave }: any) => {
       }
   }
 
+  // Auto-calculate recurrence
   const calculateRecurrence = (unit: string, type: string) => {
       const count = data.filter((i:any) => i.unit === unit && i.type === type).length;
       return count + 1;
@@ -990,7 +1054,7 @@ const InfractionsView = ({ data, onSave }: any) => {
   const handleStatusChange = (newStatus: string) => {
       if(selectedInfraction) {
           onSave({...selectedInfraction, status: newStatus}, true);
-          setSelectedInfraction({...selectedInfraction, status: newStatus});
+          setSelectedInfraction({...selectedInfraction, status: newStatus}); // update local modal state
       }
   }
 
@@ -1051,6 +1115,7 @@ const InfractionsView = ({ data, onSave }: any) => {
             </Card>
         )}
 
+        {/* Modal Registrar */}
         <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Registrar Infração">
             <div className="space-y-4">
                 <div>
@@ -1078,6 +1143,7 @@ const InfractionsView = ({ data, onSave }: any) => {
             </div>
         </Modal>
 
+        {/* Modal Detalhes */}
         <Modal isOpen={!!selectedInfraction} onClose={() => setSelectedInfraction(null)} title="Detalhes da Infração">
             <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg">
@@ -1103,12 +1169,13 @@ const InfractionsView = ({ data, onSave }: any) => {
 };
 
 const DocumentsView = ({ data, onSave, onDelete }: any) => {
-  const [filter, setFilter] = useState('all'); 
+  const [filter, setFilter] = useState('all'); // all, valid, expiring, expired
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [docToDelete, setDocToDelete] = useState<number | null>(null);
   const [viewingDoc, setViewingDoc] = useState<any>(null);
   const [newDoc, setNewDoc] = useState({ title: '', category: '', validUntil: '', permanent: false, file: null as string | null });
 
+  // Status Logic
   const getDocStatus = (doc: any) => {
       if (doc.permanent) return 'permanent';
       const validUntil = new Date(doc.validUntil);
@@ -1223,6 +1290,7 @@ const DocumentsView = ({ data, onSave, onDelete }: any) => {
             </div>
         </Modal>
 
+        {/* View Document Modal */}
         <Modal isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} title={viewingDoc?.title || ''}>
             <div className="flex flex-col items-center justify-center p-4">
                 {viewingDoc?.file ? (
@@ -1238,6 +1306,7 @@ const DocumentsView = ({ data, onSave, onDelete }: any) => {
             </div>
         </Modal>
 
+        {/* Confirmation Delete Modal */}
         <Modal isOpen={docToDelete !== null} onClose={() => setDocToDelete(null)} title="Confirmar Exclusão">
             <p className="text-slate-600 mb-6">Tem certeza que deseja excluir este documento?</p>
             <div className="flex justify-end gap-2">
@@ -1253,14 +1322,16 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
   const [activeTab, setActiveTab] = useState('condo');
   const [editingUser, setEditingUser] = useState<any>(null);
   
+  // Condo Data Logic - Synced with currentCondoId
   const currentCondo = condos.find((c: any) => c.id === currentCondoId);
   const [condoForm, setCondoForm] = useState(currentCondo || {});
 
+  // Update form when condo context changes
   useEffect(() => {
     if (currentCondo) {
       setCondoForm(currentCondo);
     }
-  }, [currentCondo, currentCondoId]);
+  }, [currentCondo]); // Dependency ensures sync
 
   const handleSaveCondo = () => {
      onUpdateCondo(condoForm);
@@ -1351,6 +1422,62 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
             </div>
         )}
 
+        {activeTab === 'notifications' && (
+            <Card className="p-8">
+                <h3 className="text-sm font-bold text-slate-500 uppercase mb-6">Preferências de Notificação</h3>
+                
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-100">
+                        <div>
+                            <p className="font-bold text-slate-800">Alertas de Vencimento</p>
+                            <p className="text-xs text-slate-500">Receber avisos antes do vencimento de documentos e contas</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <input type="number" className="w-16 px-2 py-1 border border-slate-300 rounded text-center text-slate-900 bg-white" defaultValue={5} />
+                            <span className="text-sm text-slate-600">dias antes</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <p className="text-xs font-bold text-slate-500 uppercase">Canais</p>
+                        <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 bg-white">
+                            <input type="checkbox" defaultChecked className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" />
+                            <span className="text-slate-700 font-medium">Notificações por Email</span>
+                        </label>
+                        <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 bg-white">
+                            <input type="checkbox" defaultChecked className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500" />
+                            <span className="text-slate-700 font-medium">Notificações no App (Push)</span>
+                        </label>
+                    </div>
+
+                    <div className="space-y-3">
+                        <p className="text-xs font-bold text-slate-500 uppercase">Tipos de Evento</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" defaultChecked className="text-indigo-600 rounded" /> Novas Infrações Registradas
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" defaultChecked className="text-indigo-600 rounded" /> Atualizações de Status de Manutenção
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" defaultChecked className="text-indigo-600 rounded" /> Contas a Pagar Vencendo
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" defaultChecked className="text-indigo-600 rounded" /> Documentos e Alvarás Expirando
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" defaultChecked className="text-indigo-600 rounded" /> Novos Moradores Cadastrados
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="flex justify-end mt-8 border-t border-slate-100 pt-6">
+                    <button className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">Salvar Preferências</button>
+                </div>
+            </Card>
+        )}
+
         <Modal isOpen={!!editingUser} onClose={() => setEditingUser(null)} title="Editar Usuário">
             <div className="space-y-4">
                 <input className={inputClass} placeholder="Nome" value={editingUser?.name || ''} onChange={e => setEditingUser({...editingUser, name: e.target.value})} />
@@ -1394,7 +1521,7 @@ const RegistrationView = ({ data, onUpdate }: any) => {
   const handleSave = () => {
     if (editing.id) onUpdate(data.map((c: any) => c.id === editing.id ? editing : c));
     else {
-      // Auto-increment ID
+      // Auto-increment ID based on max existing ID (Sequential)
       const maxId = data.reduce((max: number, c: any) => Math.max(max, c.id), 0);
       onUpdate([...data, { ...editing, id: maxId + 1 }]);
     }
