@@ -51,7 +51,7 @@ The application uses mock data for demonstration purposes. All data is stored in
 ### Development
 - `GEMINI_API_KEY`: API key for Google Gemini AI (stored as Replit Secret)
 
-The Vite configuration automatically exposes this as `process.env.GEMINI_API_KEY` in the application.
+⚠️ **Security Note**: The Vite configuration exposes the GEMINI_API_KEY to the client bundle via the `define` option. This follows the original GitHub repository's design as a client-side only application. In a production environment, it's recommended to add a backend API proxy to keep the API key secure on the server side.
 
 ## Running the Application
 
