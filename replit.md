@@ -78,7 +78,8 @@ The application is configured for Replit Autoscale deployment:
 ### vite.config.ts
 - Port: 5000 (Replit requirement)
 - Host: 0.0.0.0 (allows external connections)
-- HMR: Configured for Replit proxy environment
+- allowedHosts: true (allows Replit proxy access)
+- HMR: Configured for Replit proxy environment (wss protocol, port 443)
 - Environment variables: GEMINI_API_KEY exposed to client
 
 ### package.json
