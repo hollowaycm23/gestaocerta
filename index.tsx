@@ -42,11 +42,11 @@ const MOCK_CONDOS = [
 
 const MOCK_UNITS = [
   { id: 1, condoId: 1, number: '101', block: 'A', responsible: 'João Silva', type: 'owner', status: 'paid', area: 80 },
-  { id: 2, condoId: 1, number: '102', block: 'A', responsible: 'Maria Souza', type: 'tenant', status: 'debt', area: 80, tenantName: 'Maria Souza' },
+  { id: 2, condoId: 1, number: '102', block: 'A', responsible: 'Maria Souza', type: 'tenant', status: 'debt', area: 80 },
   { id: 3, condoId: 1, number: '103', block: 'B', responsible: '-', type: 'vacant', status: 'debt', area: 90 },
   { id: 4, condoId: 1, number: '104', block: 'B', responsible: 'Pedro Santos', type: 'owner', status: 'paid', area: 90 },
   { id: 5, condoId: 1, number: '105', block: 'C', responsible: 'Ana Pereira', type: 'owner', status: 'paid', area: 100 },
-  { id: 6, condoId: 1, number: '106', block: 'C', responsible: 'Carlos Lima', type: 'tenant', status: 'debt', area: 100, tenantName: 'Carlos Lima' },
+  { id: 6, condoId: 1, number: '106', block: 'C', responsible: 'Carlos Lima', type: 'tenant', status: 'debt', area: 100 },
   { id: 7, condoId: 2, number: '100', block: 'A', responsible: 'teste', type: 'owner', status: 'paid', area: 100 },
 ];
 
@@ -86,7 +86,7 @@ const MOCK_SUPPLIERS = [
 ];
 
 const MOCK_INFRACTIONS = [
-  { id: 1, condoId: 1, unit: 'Unit 102', type: 'Barulho Excessivo', date: '2023-11-19', fine: 250.00, status: 'aguardando_defesa', recurrence: 1 },
+  { id: 1, condoId: 1, unit: 'Unit 102', type: 'Barulho Excessivo', date: '2023-11-19', fine: 250.00, status: 'pending', recurrence: 1 },
   { id: 2, condoId: 1, unit: 'Unit 106', type: 'Estacionamento Irregular', date: '2023-11-17', fine: 150.00, status: 'multado', recurrence: 2 },
   { id: 3, condoId: 1, unit: 'Unit 101', type: 'Mudança fora de horário', date: '2023-11-09', fine: 500.00, status: 'appealing', recurrence: 1 },
 ];
@@ -120,11 +120,11 @@ const Card = ({ title, children, action, className = "" }: { title?: string; chi
   </div>
 );
 
-const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-md" }: { isOpen: boolean, onClose: () => void, title: string, children?: React.ReactNode, maxWidth?: string }) => {
+const Modal = ({ isOpen, onClose, title, children, maxWidth }: { isOpen: boolean, onClose: () => void, title: string, children?: React.ReactNode, maxWidth?: string }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200`}>
+      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth || 'max-w-md'} overflow-hidden animate-in zoom-in-95 duration-200`}>
         <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
           <h3 className="font-bold text-lg text-slate-800">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
@@ -144,7 +144,6 @@ const StatusBadge = ({ status }: { status: string }) => {
     paid: 'bg-emerald-100 text-emerald-700',
     adimplente: 'bg-emerald-100 text-emerald-700',
     active: 'bg-emerald-100 text-emerald-700',
-    ativo: 'bg-emerald-100 text-emerald-700',
     completed: 'bg-emerald-100 text-emerald-700',
     concluido: 'bg-emerald-100 text-emerald-700',
     vigente: 'bg-emerald-100 text-emerald-700',
@@ -162,7 +161,6 @@ const StatusBadge = ({ status }: { status: string }) => {
     vencido: 'bg-rose-100 text-rose-700',
     multado: 'bg-rose-100 text-rose-700',
     inactive: 'bg-slate-100 text-slate-700',
-    inativo: 'bg-slate-100 text-slate-700',
     cancelled: 'bg-slate-100 text-slate-700',
     appealing: 'bg-purple-100 text-purple-700',
     vacant: 'bg-slate-100 text-slate-600',
@@ -171,10 +169,9 @@ const StatusBadge = ({ status }: { status: string }) => {
   };
 
   const labels: any = {
-    paid: 'Adimplente',
+    paid: 'Pago',
     adimplente: 'Adimplente',
     active: 'Ativo',
-    ativo: 'Ativo',
     completed: 'Concluído',
     concluido: 'Concluído',
     vigente: 'Vigente',
@@ -192,7 +189,6 @@ const StatusBadge = ({ status }: { status: string }) => {
     vencido: 'Vencido',
     multado: 'Multado',
     inactive: 'Inativo',
-    inativo: 'Inativo',
     cancelled: 'Cancelada',
     appealing: 'Em Recurso',
     vacant: 'Vaga',
@@ -352,15 +348,15 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
-                  <tr><th className="p-3">Item</th><th className="p-3">Data</th><th className="p-3">Tipo</th><th className="p-3">Fornecedor</th><th className="p-3">Status</th></tr>
+                  <tr><th className="p-3">Item</th><th className="p-3">Tipo</th><th className="p-3">Fornecedor</th><th className="p-3">Data</th><th className="p-3">Status</th></tr>
                 </thead>
                 <tbody>
                   {maintenance.slice(0, 5).map((item: any) => (
                     <tr key={item.id} className="border-b">
                       <td className="p-3 text-slate-900 font-medium">{item.item}</td>
-                      <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
                       <td className="p-3 text-slate-600">{item.type}</td>
-                      <td className="p-3 text-slate-600">{item.supplier || '-'}</td>
+                      <td className="p-3 text-slate-600">{item.supplier}</td>
+                      <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
                       <td className="p-3"><StatusBadge status={item.status} /></td>
                     </tr>
                   ))}
@@ -499,7 +495,7 @@ const FinanceView = ({ data, onSave, suppliers }: any) => {
                             <DollarSign size={14} />
                         </div>
                         <div>
-                            <p className="font-medium text-slate-900">{item.description}</p>
+                            <p className="font-medium">{item.description}</p>
                             {item.supplier && <p className="text-xs text-slate-500 flex items-center gap-1"><Truck size={10}/> {item.supplier}</p>}
                         </div>
                     </div>
@@ -600,8 +596,7 @@ const UnitsView = ({ data, onSave, residents }: any) => {
   const [editing, setEditing] = useState<any>(null);
 
   const handleEdit = (unit: any) => {
-      // Clone to ensure proper state management
-      setEditing(JSON.parse(JSON.stringify(unit)));
+      setEditing({...unit});
   }
 
   const handleSave = () => {
@@ -614,26 +609,26 @@ const UnitsView = ({ data, onSave, residents }: any) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Unidades</h2><button onClick={() => setEditing({ number: '', block: '', responsible: '', type: 'owner', status: 'paid', area: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Nova Unidade</button></div>
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left min-w-[600px]">
+      <div className="overflow-x-auto">
+        <Card className="min-w-[800px]">
+            <table className="w-full text-sm text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">Unidade</th><th className="p-3">Responsável</th><th className="p-3">Ocupação</th><th className="p-3">Situação Financeira</th><th className="p-3 text-right">Ações</th></tr></thead>
             <tbody>
-              {data.map((u: any) => (
+                {data.map((u: any) => (
                 <tr key={u.id} className="border-b hover:bg-slate-50">
-                  <td className="p-3 font-medium text-slate-900">{u.number} - Bloco {u.block}</td>
-                  <td className="p-3 text-slate-900">{u.responsible}</td>
-                  <td className="p-3 text-slate-600">
-                      {u.type === 'owner' ? 'Proprietário' : u.type === 'tenant' ? 'Inquilino' : 'Vazia'}
-                  </td>
-                  <td className="p-3"><StatusBadge status={u.status === 'paid' ? 'adimplente' : 'inadimplente'} /></td>
-                  <td className="p-3 text-right"><button onClick={() => handleEdit(u)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button></td>
+                    <td className="p-3 font-medium text-slate-900">{u.number} - Bloco {u.block}</td>
+                    <td className="p-3 text-slate-900">{u.responsible}</td>
+                    <td className="p-3 text-slate-600">
+                        {u.type === 'owner' ? 'Proprietário' : u.type === 'tenant' ? 'Inquilino' : 'Vazia'}
+                    </td>
+                    <td className="p-3"><StatusBadge status={u.status === 'paid' ? 'adimplente' : 'inadimplente'} /></td>
+                    <td className="p-3 text-right"><button onClick={() => handleEdit(u)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button></td>
                 </tr>
-              ))}
+                ))}
             </tbody>
-          </table>
-        </div>
-      </Card>
+            </table>
+        </Card>
+      </div>
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Editar Unidade" : "Nova Unidade"}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -666,10 +661,11 @@ const UnitsView = ({ data, onSave, residents }: any) => {
             </div>
           </div>
           
+          {/* Conditional Tenant Field */}
           {editing?.type === 'tenant' && (
               <div>
                   <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nome do Inquilino</label>
-                  <input className={inputClass} value={editing?.tenantName || ''} onChange={e => setEditing({...editing, tenantName: e.target.value})} placeholder="Nome completo do inquilino" />
+                  <input className={inputClass} placeholder="Nome completo do Inquilino" value={editing?.tenantName || ''} onChange={e => setEditing({...editing, tenantName: e.target.value})} />
               </div>
           )}
 
@@ -687,7 +683,7 @@ export const SuppliersView = ({ data, onSave }: any) => {
     const [editing, setEditing] = useState<any>(null);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
-    
+
     const filtered = data.filter((s:any) => {
         const matchesFilter = filter === 'all' ? true : (filter === 'active' ? s.status === 'active' : s.status === 'inactive');
         const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
@@ -717,7 +713,12 @@ export const SuppliersView = ({ data, onSave }: any) => {
             <div className="flex flex-col gap-4">
                 <div className="relative">
                     <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                    <input className={`${inputClass} pl-10`} placeholder="Buscar fornecedor por nome..." value={search} onChange={e => setSearch(e.target.value)} />
+                    <input 
+                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900" 
+                        placeholder="Buscar fornecedor por nome..." 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
                 </div>
                 <div className="flex gap-2">
                     <button onClick={()=>setFilter('all')} className={`px-3 py-1 rounded transition-colors ${filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 hover:bg-slate-200'}`}>Todos</button>
@@ -726,7 +727,7 @@ export const SuppliersView = ({ data, onSave }: any) => {
                 </div>
             </div>
 
-            <Card><table className="w-full text-sm text-left"><thead className="bg-slate-50 uppercase text-xs"><tr><th className="p-3">Nome</th><th className="p-3">Categoria</th><th className="p-3">Contato</th><th className="p-3">Vencimento</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr></thead><tbody>{filtered.map((s:any)=><tr key={s.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-3 text-slate-900 font-bold">{s.name}</td><td className="p-3">{s.category}</td><td className="p-3">{s.contact}</td><td className="p-3 text-slate-600">{s.contractEnd ? new Date(s.contractEnd).toLocaleDateString('pt-BR') : '-'}</td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3 text-right space-x-3"><button type="button" onClick={() => toggleStatus(s)} className={`text-xs font-bold uppercase tracking-wider ${s.status === 'active' ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'}`}>{s.status === 'active' ? 'Desativar' : 'Ativar'}</button><button type="button" onClick={() => handleDownloadContract(s.name)} className="text-indigo-600 text-xs font-bold uppercase tracking-wider hover:text-indigo-800">CONTRATO</button><button onClick={()=>setEditing(s)} className="text-slate-400 hover:text-indigo-600">Editar</button></td></tr>)}</tbody></table></Card>
+            <Card><table className="w-full text-sm text-left"><thead className="bg-slate-50 uppercase text-xs"><tr><th className="p-3">Nome</th><th className="p-3">Categoria</th><th className="p-3">Contato</th><th className="p-3">Vencimento</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr></thead><tbody>{filtered.map((s:any)=><tr key={s.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-3 text-slate-900 font-bold">{s.name}</td><td className="p-3 text-slate-600">{s.category}</td><td className="p-3 text-slate-600">{s.contact}</td><td className="p-3 text-slate-600">{s.contractEnd ? new Date(s.contractEnd).toLocaleDateString('pt-BR') : '-'}</td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3 text-right space-x-3"><button type="button" onClick={() => toggleStatus(s)} className={`text-xs font-bold uppercase tracking-wider ${s.status === 'active' ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'}`}>{s.status === 'active' ? 'Desativar' : 'Ativar'}</button><button onClick={() => handleDownloadContract(s.name)} className="text-indigo-600 text-xs font-bold uppercase tracking-wider hover:text-indigo-800">CONTRATO</button><button onClick={()=>setEditing(s)} className="text-slate-400 hover:text-indigo-600">Editar</button></td></tr>)}</tbody></table></Card>
             <Modal isOpen={!!editing} onClose={()=>setEditing(null)} title="Fornecedor"><div className="space-y-4"><input className={inputClass} placeholder="Nome" value={editing?.name||''} onChange={e=>setEditing({...editing, name:e.target.value})}/><input className={inputClass} placeholder="Categoria" value={editing?.category||''} onChange={e=>setEditing({...editing, category:e.target.value})}/><input className={inputClass} placeholder="Contato" value={editing?.contact||''} onChange={e=>setEditing({...editing, contact:e.target.value})}/><div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Início</label><input type="date" className={inputClass} value={editing?.contractStart || ''} onChange={e => setEditing({...editing, contractStart: e.target.value})} /></div><div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fim (Vencimento)</label><input type="date" className={inputClass} value={editing?.contractEnd || ''} onChange={e => setEditing({...editing, contractEnd: e.target.value})} /></div></div><select className={inputClass} value={editing?.status||'active'} onChange={e=>setEditing({...editing, status:e.target.value})}><option value="active">Ativo</option><option value="inactive">Inativo</option></select><button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition-colors">Salvar</button></div></Modal>
         </div>
     );
@@ -755,7 +756,7 @@ const ResidentsView = ({ data, onSave, onDelete }: any) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Moradores</h2><button onClick={() => setEditing({ name: '', unit: '', phone: '', email: '', occupants: 1 })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Nova Morador</button></div>
+      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Moradores</h2><button onClick={() => setEditing({ name: '', unit: '', phone: '', email: '', occupants: 1 })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Novo Morador</button></div>
       <Card>
         <table className="w-full text-sm text-left">
           <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">Nome</th><th className="p-3">Unidade</th><th className="p-3">Contato</th><th className="p-3">Ocupantes</th><th className="p-3 text-right">Ações</th></tr></thead>
@@ -1268,15 +1269,13 @@ const DocumentsView = ({ data, onSave, onDelete }: any) => {
 
         {/* View Document Modal */}
         <Modal isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} title={viewingDoc?.title || ''} maxWidth="max-w-4xl">
-            <div className="flex flex-col items-center justify-center p-4">
+            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg min-h-[400px]">
                 {viewingDoc?.file ? (
                     viewingDoc.file.startsWith('data:image') ? 
-                        <img src={viewingDoc.file} alt="Doc" className="max-w-full rounded shadow" /> :
-                    viewingDoc.file.startsWith('data:application/pdf') ?
-                        <object data={viewingDoc.file} type="application/pdf" width="100%" height="600px" className="border rounded">
-                            <p>Seu navegador não suporta visualização de PDF. <a href={viewingDoc.file} download>Clique para baixar</a>.</p>
-                        </object> :
-                        <embed src={viewingDoc.file} className="w-full h-96 border rounded" />
+                        <img src={viewingDoc.file} alt="Doc" className="max-w-full max-h-[70vh] rounded shadow" /> :
+                        <object data={viewingDoc.file} type="application/pdf" className="w-full h-[70vh] rounded shadow border border-slate-200">
+                            <p>Seu navegador não pode exibir este PDF. <a href={viewingDoc.file} download>Clique aqui para baixar.</a></p>
+                        </object>
                 ) : (
                     <div className="text-center py-10">
                         <FileText size={48} className="mx-auto text-slate-300 mb-4" />
@@ -1376,6 +1375,10 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                     <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Endereço</label>
                     <input className={inputClass} value={condoForm.address || ''} onChange={e => setCondoForm({...condoForm, address: e.target.value})} />
                 </div>
+                <div className="mb-6">
+                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Síndico Responsável</label>
+                    <input className={inputClass} value={condoForm.syndic || ''} onChange={e => setCondoForm({...condoForm, syndic: e.target.value})} />
+                </div>
                 <div className="flex justify-end">
                     <button onClick={handleSaveCondo} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700">Salvar Alterações</button>
                 </div>
@@ -1395,7 +1398,7 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                                         <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500"><Users size={16}/></div>
                                         {u.name}
                                     </td>
-                                    <td className="p-3 text-slate-900 font-medium">{u.email}</td>
+                                    <td className="p-3 text-slate-900">{u.email}</td>
                                     <td className="p-3 text-slate-600">
                                         {u.permittedCondos ? u.permittedCondos.join(', ') : 'Nenhum'}
                                     </td>
@@ -1485,11 +1488,12 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                     <p className="text-xs font-bold text-slate-500 uppercase mb-2">Permissões de Acesso (Condomínios)</p>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
                         {condos.map((c:any) => (
-                            <label key={c.id} className="flex items-center gap-2 text-sm">
+                            <label key={c.id} className="flex items-center gap-2 text-sm text-slate-700">
                                 <input 
                                     type="checkbox" 
-                                    checked={editingUser?.permittedCondos?.includes(c.id)}
+                                    checked={editingUser?.permittedCondos?.includes(c.id) || false}
                                     onChange={() => togglePermission(c.id)}
+                                    className="rounded text-indigo-600 focus:ring-indigo-500"
                                 />
                                 {c.name} (ID {c.id})
                             </label>
@@ -1510,6 +1514,24 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
 const RegistrationView = ({ data, onUpdate }: any) => {
   const [editing, setEditing] = useState<any>(null);
   const [condoToDelete, setCondoToDelete] = useState<number | null>(null);
+
+  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value.replace(/\D/g, '');
+    if (value.length > 14) value = value.slice(0, 14);
+    
+    // Mask CNPJ
+    if (value.length > 12) {
+      value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
+    } else if (value.length > 8) {
+      value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, '$1.$2.$3/$4');
+    } else if (value.length > 5) {
+      value = value.replace(/^(\d{2})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
+    } else if (value.length > 2) {
+      value = value.replace(/^(\d{2})(\d{0,3}).*/, '$1.$2');
+    }
+    
+    setEditing({...editing, cnpj: value});
+  };
 
   const handleSave = () => {
     if (editing.id) onUpdate(data.map((c: any) => c.id === editing.id ? editing : c));
@@ -1538,7 +1560,7 @@ const RegistrationView = ({ data, onUpdate }: any) => {
             {data.map((c: any) => (
               <tr key={c.id} className="border-b hover:bg-slate-50 transition-colors">
                 <td className="p-3 text-slate-500">{c.id}</td>
-                <td className="p-3 font-medium flex items-center gap-2"><Building size={16} className="text-indigo-500"/> {c.name}</td>
+                <td className="p-3 font-medium flex items-center gap-2 text-slate-900"><Building size={16} className="text-indigo-500"/> {c.name}</td>
                 <td className="p-3 text-slate-600">{c.cnpj}</td>
                 <td className="p-3 text-slate-600">{c.address}</td>
                 <td className="p-3 text-slate-600">{c.syndic}</td>
@@ -1556,7 +1578,7 @@ const RegistrationView = ({ data, onUpdate }: any) => {
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title="Condomínio">
         <div className="space-y-4">
           <input className={inputClass} placeholder="Nome do Condomínio" value={editing?.name || ''} onChange={e => setEditing({...editing, name: e.target.value})} />
-          <input className={inputClass} placeholder="CNPJ" value={editing?.cnpj || ''} onChange={e => setEditing({...editing, cnpj: e.target.value})} />
+          <input className={inputClass} placeholder="CNPJ" value={editing?.cnpj || ''} onChange={handleCnpjChange} maxLength={18} />
           <input className={inputClass} placeholder="Endereço Completo" value={editing?.address || ''} onChange={e => setEditing({...editing, address: e.target.value})} />
           <input className={inputClass} placeholder="Nome do Síndico" value={editing?.syndic || ''} onChange={e => setEditing({...editing, syndic: e.target.value})} />
           <div className="flex justify-end gap-2"><button onClick={() => setEditing(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button><button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Salvar</button></div>
@@ -1709,17 +1731,17 @@ const App = () => {
       // Maintenance Alerts
       if (appSettings.events.maintenance) {
           const pendingMaint = maintenance.filter((m:any) => {
-              if (m.condoId !== currentCondoId || (m.status !== 'scheduled' && m.status !== 'pending')) return false;
+              if (m.condoId !== currentCondoId || m.status === 'completed' || m.status === 'cancelled') return false;
               const today = new Date().toISOString().split('T')[0];
-              return m.date <= today;
+              return m.date <= today; // Overdue or today
           }).length;
-          if(pendingMaint > 0) alerts.push({ id: 3, text: `${pendingMaint} manutenção(ões) agendadas ou atrasadas.`, type: 'info' });
+          if(pendingMaint > 0) alerts.push({ id: 3, text: `${pendingMaint} manutenção(ões) pendente(s) ou atrasada(s).`, type: 'info' });
       }
 
       // Infraction Alerts
       if (appSettings.events.infractions) {
-          const pendingInfr = infractions.filter((i:any) => i.condoId === currentCondoId && i.status === 'aguardando_defesa').length;
-          if(pendingInfr > 0) alerts.push({ id: 4, text: `${pendingInfr} infração(ões) aguardando defesa.`, type: 'alert' });
+          const pendingInfractions = infractions.filter((i:any) => i.condoId === currentCondoId && i.status === 'aguardando_defesa').length;
+          if(pendingInfractions > 0) alerts.push({ id: 4, text: `${pendingInfractions} infração(ões) aguardando defesa.`, type: 'alert' });
       }
 
       return alerts;
@@ -1838,7 +1860,7 @@ const App = () => {
                                     ) : (
                                         notifications.map((n:any) => (
                                             <div key={n.id} className="p-3 hover:bg-slate-50 border-b border-slate-50 flex gap-3">
-                                                <div className="mt-1 text-rose-500"><AlertCircle size={16}/></div>
+                                                <div className={`mt-1 ${n.type === 'alert' ? 'text-rose-500' : n.type === 'warning' ? 'text-amber-500' : 'text-indigo-500'}`}><AlertCircle size={16}/></div>
                                                 <p className="text-sm text-slate-600">{n.text}</p>
                                             </div>
                                         ))
