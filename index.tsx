@@ -28,7 +28,10 @@ import {
   Building,
   Edit,
   LogOut,
-  Database
+  Database,
+  Printer,
+  Smartphone,
+  ShieldCheck
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -36,13 +39,13 @@ type ViewState = 'dashboard' | 'units' | 'maintenance' | 'finance' | 'suppliers'
 
 // --- MOCK DATA ---
 const MOCK_CONDOS = [
-  { id: 1, name: 'Residencial Horizonte', cnpj: '12.345.678/0001-90', address: 'Rua das Flores, 123', syndic: 'Carlos Silva' },
-  { id: 2, name: 'Edifício Solar', cnpj: '98.765.432/0001-12', address: 'Av. do Sol, 456', syndic: 'Ana Souza' }
+  { id: 1, name: 'Residencial Horizonte', cnpj: '12.345.678/0001-90', address: 'Rua das Flores, 123', syndic: 'Carlos Silva', phone: '(11) 98765-4321', initialBalance: 5000 },
+  { id: 2, name: 'Edifício Solar', cnpj: '98.765.432/0001-12', address: 'Av. do Sol, 456', syndic: 'Ana Souza', phone: '(11) 91234-5678', initialBalance: 2500 }
 ];
 
 const MOCK_UNITS = [
   { id: 1, condoId: 1, number: '101', block: 'A', responsible: 'João Silva', type: 'owner', status: 'paid', area: 80 },
-  { id: 2, condoId: 1, number: '102', block: 'A', responsible: 'Maria Souza', type: 'tenant', status: 'debt', area: 80 },
+  { id: 2, condoId: 1, number: '102', block: 'A', responsible: 'Maria Souza', type: 'tenant', status: 'debt', area: 80, tenantName: 'Marcos Vinicius' },
   { id: 3, condoId: 1, number: '103', block: 'B', responsible: '-', type: 'vacant', status: 'debt', area: 90 },
   { id: 4, condoId: 1, number: '104', block: 'B', responsible: 'Pedro Santos', type: 'owner', status: 'paid', area: 90 },
   { id: 5, condoId: 1, number: '105', block: 'C', responsible: 'Ana Pereira', type: 'owner', status: 'paid', area: 100 },
@@ -51,12 +54,12 @@ const MOCK_UNITS = [
 ];
 
 const MOCK_RESIDENTS = [
-  { id: 1, condoId: 1, name: 'João Silva', unit: '101 - A', phone: '(11) 9999-0001', email: 'joao@email.com', occupants: 3 },
-  { id: 2, condoId: 1, name: 'Maria Souza', unit: '102 - A', phone: '(11) 9999-0002', email: 'maria@email.com', occupants: 2 },
-  { id: 3, condoId: 1, name: 'Pedro Santos', unit: '104 - B', phone: '(11) 9999-0003', email: 'pedro@email.com', occupants: 4 },
-  { id: 4, condoId: 1, name: 'Ana Pereira', unit: '105 - C', phone: '(11) 9999-0004', email: 'ana@email.com', occupants: 1 },
-  { id: 5, condoId: 1, name: 'Carlos Lima', unit: '106 - C', phone: '(11) 9999-0005', email: 'carlos@email.com', occupants: 2 },
-  { id: 6, condoId: 2, name: 'teste', unit: '100 - A', phone: '123576486387', email: 'teste@teste.com', occupants: 1 },
+  { id: 1, condoId: 1, name: 'João Silva', unit: '101 - A', phone: '(11) 9999-0001', email: 'joao@email.com', cpf: '123.456.789-00', occupants: 3 },
+  { id: 2, condoId: 1, name: 'Maria Souza', unit: '102 - A', phone: '(11) 9999-0002', email: 'maria@email.com', cpf: '234.567.890-11', occupants: 2 },
+  { id: 3, condoId: 1, name: 'Pedro Santos', unit: '104 - B', phone: '(11) 9999-0003', email: 'pedro@email.com', cpf: '345.678.901-22', occupants: 4 },
+  { id: 4, condoId: 1, name: 'Ana Pereira', unit: '105 - C', phone: '(11) 9999-0004', email: 'ana@email.com', cpf: '456.789.012-33', occupants: 1 },
+  { id: 5, condoId: 1, name: 'Carlos Lima', unit: '106 - C', phone: '(11) 9999-0005', email: 'carlos@email.com', cpf: '567.890.123-44', occupants: 2 },
+  { id: 6, condoId: 2, name: 'teste', unit: '100 - A', phone: '123576486387', email: 'teste@teste.com', cpf: '000.000.000-00', occupants: 1 },
 ];
 
 const MOCK_MAINTENANCE = [
@@ -70,14 +73,14 @@ const MOCK_MAINTENANCE = [
 const MOCK_FINANCE = [
   { id: 1, condoId: 1, description: 'Aluguel 101', category: 'Aluguel', date: '2023-11-04', type: 'income', value: 2500.00, status: 'paid', dueDate: '2023-11-04' },
   { id: 2, condoId: 1, description: 'Material Limpeza', category: 'Serviços', date: '2023-11-09', type: 'expense', value: 350.00, status: 'pending', dueDate: '2023-11-14' },
-  { id: 3, condoId: 1, description: 'Manutenção Elevador', category: 'Manutenção', date: '2023-11-11', type: 'expense', value: 1200.00, status: 'pending', dueDate: '2023-11-19' },
+  { id: 3, condoId: 1, description: 'Manutenção Elevador', category: 'Manutenção', date: '2023-11-11', type: 'expense', value: 1200.00, status: 'pending', dueDate: '2023-11-19', supplier: 'TechElevators' },
   { id: 4, condoId: 1, description: 'Aluguel 104', category: 'Aluguel', date: '2023-11-04', type: 'income', value: 2500.00, status: 'paid', dueDate: '2023-11-04' },
   { id: 5, condoId: 1, description: 'Aluguel 105', category: 'Aluguel', date: '2023-12-03', type: 'income', value: 2500.00, status: 'paid', dueDate: '2023-12-04' },
   { id: 6, condoId: 1, description: 'Conta de Luz', category: 'Utilidades', date: '2023-11-13', type: 'expense', value: 500.00, status: 'pending', dueDate: '2023-11-24' },
 ];
 
 const MOCK_SUPPLIERS = [
-  { id: 1, condoId: 1, name: 'TechElevators', category: 'Manutenção', contact: '(11) 9999-8888', status: 'active', contractStart: '2023-01-01', contractEnd: '2024-01-01' },
+  { id: 1, condoId: 1, name: 'TechElevators', category: 'Manutenção', contact: '(11) 9999-8888', status: 'active', contractStart: '2023-01-01', contractEnd: '2024-01-01', address: 'Rua A, 123', cpfCnpj: '12.345.678/0001-00', observations: 'Atendimento 24h' },
   { id: 2, condoId: 1, name: 'Imobiliária Centro', category: 'Administrativo', contact: '(11) 7777-6666', status: 'active', contractStart: '2023-05-01', contractEnd: '2025-05-01' },
   { id: 3, condoId: 1, name: 'Distribuidora XYZ', category: 'Insumos', contact: '(11) 5555-4444', status: 'inactive', contractStart: '2022-01-01', contractEnd: '2022-12-31' },
   { id: 4, condoId: 1, name: 'PoolService', category: 'Manutenção', contact: '(11) 3333-2222', status: 'active', contractStart: '2023-01-01', contractEnd: '2024-01-01' },
@@ -86,7 +89,7 @@ const MOCK_SUPPLIERS = [
 ];
 
 const MOCK_INFRACTIONS = [
-  { id: 1, condoId: 1, unit: 'Unit 102', type: 'Barulho Excessivo', date: '2023-11-19', fine: 250.00, status: 'pending', recurrence: 1 },
+  { id: 1, condoId: 1, unit: 'Unit 102', type: 'Barulho Excessivo', date: '2023-11-19', fine: 250.00, status: 'aguardando_defesa', recurrence: 1 },
   { id: 2, condoId: 1, unit: 'Unit 106', type: 'Estacionamento Irregular', date: '2023-11-17', fine: 150.00, status: 'multado', recurrence: 2 },
   { id: 3, condoId: 1, unit: 'Unit 101', type: 'Mudança fora de horário', date: '2023-11-09', fine: 500.00, status: 'appealing', recurrence: 1 },
 ];
@@ -99,9 +102,9 @@ const MOCK_DOCUMENTS = [
 ];
 
 const MOCK_USERS = [
-  { id: 1, name: 'Carlos Síndico', email: 'carlos@horizonte.com', role: 'Síndico', status: 'active', permittedCondos: [1] },
-  { id: 2, name: 'Ana Admin', email: 'ana@admin.com', role: 'Administradora', status: 'active', permittedCondos: [1, 2] },
-  { id: 3, name: 'João Porteiro', email: 'joao@portaria.com', role: 'Portaria', status: 'inactive', permittedCondos: [1] },
+  { id: 1, name: 'Carlos Síndico', email: 'carlos@horizonte.com', role: 'Síndico', status: 'active', permittedCondos: [1], mfaEnabled: true },
+  { id: 2, name: 'Ana Admin', email: 'ana@admin.com', role: 'Administradora', status: 'active', permittedCondos: [1, 2], mfaEnabled: false },
+  { id: 3, name: 'João Porteiro', email: 'joao@portaria.com', role: 'Portaria', status: 'inactive', permittedCondos: [1], mfaEnabled: false },
 ];
 
 // --- COMPONENTS ---
@@ -120,18 +123,18 @@ const Card = ({ title, children, action, className = "" }: { title?: string; chi
   </div>
 );
 
-const Modal = ({ isOpen, onClose, title, children, maxWidth }: { isOpen: boolean, onClose: () => void, title: string, children?: React.ReactNode, maxWidth?: string }) => {
+const Modal = ({ isOpen, onClose, title, children, maxWidth = "max-w-md" }: { isOpen: boolean, onClose: () => void, title: string, children?: React.ReactNode, maxWidth?: string }) => {
   if (!isOpen) return null;
   return (
     <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth || 'max-w-md'} overflow-hidden animate-in zoom-in-95 duration-200`}>
+      <div className={`bg-white rounded-xl shadow-2xl w-full ${maxWidth} overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]`}>
         <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
           <h3 className="font-bold text-lg text-slate-800">{title}</h3>
           <button onClick={onClose} className="p-1 hover:bg-slate-200 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
           </button>
         </div>
-        <div className="p-6">
+        <div className="p-6 overflow-y-auto">
           {children}
         </div>
       </div>
@@ -169,7 +172,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   };
 
   const labels: any = {
-    paid: 'Pago',
+    paid: 'Adimplente',
     adimplente: 'Adimplente',
     active: 'Ativo',
     completed: 'Concluído',
@@ -231,17 +234,271 @@ const ActionMenu = ({ onAction, options }: { onAction: (action: string) => void,
   );
 };
 
+const ErrorMessage = ({ message }: { message: string }) => (
+    <p className="text-xs text-rose-500 mt-1">{message}</p>
+);
+
+// --- HELPER FUNCTIONS ---
+const validateEmail = (email: string) => {
+    return String(email)
+      .toLowerCase()
+      .match(
+        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+      );
+};
+
 // --- VIEWS ---
 
-const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any) => {
+const FinanceView = ({ data, onSave, suppliers, initialBalance }: any) => {
+  const [showModal, setShowModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportFormat, setReportFormat] = useState('pdf');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [newEntry, setNewEntry] = useState({ description: '', category: '', value: '', type: 'expense', date: new Date().toISOString().split('T')[0], dueDate: '', supplier: '' });
+  const [errors, setErrors] = useState<any>({});
+
+  const validate = () => {
+      const err: any = {};
+      if(!newEntry.description) err.description = "Descrição obrigatória";
+      if(!newEntry.value || parseFloat(newEntry.value) <= 0) err.value = "Valor deve ser maior que zero";
+      if(newEntry.type === 'expense' && !newEntry.supplier) err.supplier = "Fornecedor obrigatório para despesas";
+      
+      setErrors(err);
+      return Object.keys(err).length === 0;
+  }
+
+  const filteredData = useMemo(() => {
+    return data.filter((item: any) => {
+      if (startDate && new Date(item.date) < new Date(startDate)) return false;
+      if (endDate && new Date(item.date) > new Date(endDate)) return false;
+      return true;
+    });
+  }, [data, startDate, endDate]);
+
+  const handleSaveEntry = () => {
+    if(!validate()) return;
+    onSave({ ...newEntry, value: Number(newEntry.value), status: 'pending' });
+    setShowModal(false);
+    setNewEntry({ description: '', category: '', value: '', type: 'expense', date: new Date().toISOString().split('T')[0], dueDate: '', supplier: '' });
+    setErrors({});
+  };
+
+  const handleStatusChange = (id: number, newStatus: string) => {
+      const entry = data.find((i:any) => i.id === id);
+      if(entry) {
+          onSave({...entry, status: newStatus}, true); 
+      }
+  }
+
+  const generateReport = () => {
+      alert(`Gerando relatório em ${reportFormat.toUpperCase()}...`);
+      setShowReportModal(false);
+  }
+
+  // Calculate totals
+  const flowBalance = data.reduce((acc: number, curr: any) => curr.status === 'paid' ? (curr.type === 'income' ? acc + curr.value : acc - curr.value) : acc, 0);
+  const balance = (initialBalance || 0) + flowBalance;
+
+  const pendingIncome = data.filter((i:any) => i.type === 'income' && i.status === 'pending').reduce((acc:number, c:any) => acc + c.value, 0);
+  const pendingExpense = data.filter((i:any) => i.type === 'expense' && i.status === 'pending').reduce((acc:number, c:any) => acc + c.value, 0);
+  const projectedBalance = balance + pendingIncome - pendingExpense;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
+        <div className="flex gap-2">
+            <button onClick={() => setShowReportModal(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2"><FileText size={18} /> Relatórios</button>
+            <button onClick={() => setShowModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Novo Lançamento</button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-xl border-b-4 border-emerald-500 shadow-sm">
+              <p className="text-xs font-bold text-slate-500 uppercase">Saldo em Caixa</p>
+              <h3 className="text-2xl font-bold text-slate-800 mt-1">R$ {balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-xl border-b-4 border-emerald-200 shadow-sm">
+              <p className="text-xs font-bold text-slate-500 uppercase">A Receber (Previsão)</p>
+              <h3 className="text-2xl font-bold text-emerald-600 mt-1">R$ {pendingIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
+          </div>
+          <div className="bg-white p-6 rounded-xl border-b-4 border-rose-200 shadow-sm">
+              <p className="text-xs font-bold text-slate-500 uppercase">A Pagar (Previsão)</p>
+              <h3 className="text-2xl font-bold text-rose-600 mt-1">R$ {pendingExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
+          </div>
+          <div className="bg-indigo-50 p-6 rounded-xl border-b-4 border-indigo-500 shadow-sm md:col-span-3">
+              <p className="text-xs font-bold text-indigo-800 uppercase">Saldo Previsto Final</p>
+              <h3 className="text-3xl font-bold text-indigo-900 mt-1">R$ {projectedBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
+              <p className="text-xs text-indigo-600 mt-1">Saldo Caixa + Receber - Pagar</p>
+          </div>
+      </div>
+
+      <Card>
+        <div className="flex gap-4 mb-6 bg-slate-50 p-4 rounded-lg items-end">
+            <div className="flex-1">
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Período Início</label>
+                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputClass} />
+            </div>
+            <div className="flex-1">
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Período Fim</label>
+                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputClass} />
+            </div>
+            <button onClick={() => {setStartDate(''); setEndDate('')}} className="text-slate-500 hover:text-slate-800 text-sm mb-2">Limpar Filtros</button>
+        </div>
+
+        <table className="w-full text-sm text-left">
+          <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+            <tr>
+                <th className="p-3">Descrição</th>
+                <th className="p-3">Fornecedor</th>
+                <th className="p-3">Categoria</th>
+                <th className="p-3">Data</th>
+                <th className="p-3">Vencimento</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right">Valor</th>
+                <th className="p-3 text-center">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredData.map((item: any) => (
+              <tr key={item.id} className="border-b hover:bg-slate-50">
+                <td className="p-3">
+                    <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-full ${item.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
+                            <DollarSign size={14} />
+                        </div>
+                        <div>
+                            <p className="font-medium text-slate-900">{item.description}</p>
+                        </div>
+                    </div>
+                </td>
+                <td className="p-3 text-slate-600">
+                    {item.supplier ? <div className="flex items-center gap-1"><Truck size={12}/> {item.supplier}</div> : '-'}
+                </td>
+                <td className="p-3 text-slate-600">{item.category}</td>
+                <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                <td className="p-3 text-slate-600">{item.dueDate ? new Date(item.dueDate).toLocaleDateString('pt-BR') : '-'}</td>
+                <td className="p-3"><StatusBadge status={item.status} /></td>
+                <td className={`p-3 text-right font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {item.type === 'income' ? '+' : '-'} R$ {item.value.toFixed(2)}
+                </td>
+                <td className="p-3 text-center">
+                    <ActionMenu 
+                        onAction={(act) => handleStatusChange(item.id, act)}
+                        options={[
+                            { label: 'Marcar como Pago', value: 'paid', color: 'text-emerald-600' },
+                            { label: 'Marcar como Pendente', value: 'pending', color: 'text-amber-600' },
+                            { label: 'Marcar como Vencido', value: 'vencido', color: 'text-rose-600' }
+                        ]}
+                    />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Novo Lançamento">
+        <div className="space-y-4">
+          <div className="flex gap-4 p-1 bg-slate-100 rounded-lg">
+            <button className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${newEntry.type === 'income' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`} onClick={() => setNewEntry({...newEntry, type: 'income'})}>Receita</button>
+            <button className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${newEntry.type === 'expense' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`} onClick={() => setNewEntry({...newEntry, type: 'expense'})}>Despesa</button>
+          </div>
+          <div>
+              <input className={inputClass} placeholder="Descrição" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} />
+              {errors.description && <ErrorMessage message={errors.description} />}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Data Lançamento</label>
+                <input type="date" className={inputClass} value={newEntry.date} onChange={e => setNewEntry({...newEntry, date: e.target.value})} />
+            </div>
+            <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Data Vencimento</label>
+                <input type="date" className={inputClass} value={newEntry.dueDate} onChange={e => setNewEntry({...newEntry, dueDate: e.target.value})} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <select className={inputClass} value={newEntry.category} onChange={e => setNewEntry({...newEntry, category: e.target.value})}>
+                <option value="">Categoria</option>
+                <option value="Aluguel">Aluguel</option>
+                <option value="Manutenção">Manutenção</option>
+                <option value="Serviços">Serviços</option>
+                <option value="Utilidades">Utilidades</option>
+                <option value="Taxas">Taxas</option>
+            </select>
+            <div>
+                <input type="number" className={inputClass} placeholder="Valor (R$)" value={newEntry.value} onChange={e => setNewEntry({...newEntry, value: e.target.value})} />
+                {errors.value && <ErrorMessage message={errors.value} />}
+            </div>
+          </div>
+          {newEntry.type === 'expense' && (
+              <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fornecedor</label>
+                  <select className={inputClass} value={newEntry.supplier} onChange={e => setNewEntry({...newEntry, supplier: e.target.value})}>
+                      <option value="">Selecionar Fornecedor</option>
+                      {suppliers && suppliers.map((s:any) => (
+                          <option key={s.id} value={s.name}>{s.name}</option>
+                      ))}
+                  </select>
+                  {errors.supplier && <ErrorMessage message={errors.supplier} />}
+              </div>
+          )}
+          <button onClick={handleSaveEntry} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Exportar Relatórios">
+          <div className="space-y-6">
+              <div>
+                  <label className="text-sm font-bold text-slate-700 block mb-2">Período</label>
+                  <div className="flex gap-2">
+                      <input type="date" className={inputClass} />
+                      <input type="date" className={inputClass} />
+                  </div>
+              </div>
+              <div>
+                  <label className="text-sm font-bold text-slate-700 block mb-2">Tipo de Relatório</label>
+                  <select className={inputClass}>
+                      <option>Fluxo de Caixa Detalhado</option>
+                      <option>Inadimplência por Unidade</option>
+                      <option>Despesas por Categoria</option>
+                  </select>
+              </div>
+              <div>
+                  <label className="text-sm font-bold text-slate-700 block mb-2">Formato</label>
+                  <div className="grid grid-cols-3 gap-3">
+                      <button onClick={() => setReportFormat('pdf')} className={`flex flex-col items-center p-3 rounded-xl border ${reportFormat === 'pdf' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:bg-slate-50'}`}>
+                          <FileText size={24} className="mb-2"/> <span className="text-xs font-bold">PDF</span>
+                      </button>
+                      <button onClick={() => setReportFormat('excel')} className={`flex flex-col items-center p-3 rounded-xl border ${reportFormat === 'excel' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:bg-slate-50'}`}>
+                          <FileText size={24} className="mb-2"/> <span className="text-xs font-bold">Excel</span>
+                      </button>
+                      <button onClick={() => setReportFormat('csv')} className={`flex flex-col items-center p-3 rounded-xl border ${reportFormat === 'csv' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:bg-slate-50'}`}>
+                          <Download size={24} className="mb-2"/> <span className="text-xs font-bold">CSV</span>
+                      </button>
+                  </div>
+              </div>
+              <button onClick={generateReport} className="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200">Gerar Relatório</button>
+          </div>
+      </Modal>
+    </div>
+  );
+};
+
+const DashboardView = ({ data, units, maintenance, navigateTo, documents, initialBalance }: any) => {
   const stats = useMemo(() => {
     // Finance
-    const balance = data.reduce((acc: number, curr: any) => {
+    const flowBalance = data.reduce((acc: number, curr: any) => {
       if (curr.status === 'paid') {
         return curr.type === 'income' ? acc + curr.value : acc - curr.value;
       }
       return acc;
     }, 0);
+    
+    // Add initial balance
+    const balance = (initialBalance || 0) + flowBalance;
 
     const pendingIncome = data.filter((i:any) => i.type === 'income' && i.status === 'pending').reduce((acc:number, c:any) => acc + c.value, 0);
     const pendingExpense = data.filter((i:any) => i.type === 'expense' && i.status === 'pending').reduce((acc:number, c:any) => acc + c.value, 0);
@@ -270,7 +527,7 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
     }).length : 0;
 
     return { balance, projectedBalance, occupancyRate, occupiedUnits, debtRate, debtUnits, pendingMaintenance, expiringDocs };
-  }, [data, units, maintenance, documents]);
+  }, [data, units, maintenance, documents, initialBalance]);
 
   const DashboardCard = ({ title, value, subtext, icon: Icon, colorClass, onClick }: any) => (
     <div onClick={onClick} className={`bg-white p-6 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:shadow-md transition-all ${colorClass} border-b-4`}>
@@ -348,15 +605,15 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
-                  <tr><th className="p-3">Item</th><th className="p-3">Tipo</th><th className="p-3">Fornecedor</th><th className="p-3">Data</th><th className="p-3">Status</th></tr>
+                  <tr><th className="p-3">Item</th><th className="p-3">Data</th><th className="p-3">Tipo</th><th className="p-3">Fornecedor</th><th className="p-3">Status</th></tr>
                 </thead>
                 <tbody>
                   {maintenance.slice(0, 5).map((item: any) => (
                     <tr key={item.id} className="border-b">
                       <td className="p-3 text-slate-900 font-medium">{item.item}</td>
+                      <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
                       <td className="p-3 text-slate-600">{item.type}</td>
                       <td className="p-3 text-slate-600">{item.supplier}</td>
-                      <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
                       <td className="p-3"><StatusBadge status={item.status} /></td>
                     </tr>
                   ))}
@@ -391,215 +648,21 @@ const DashboardView = ({ data, units, maintenance, navigateTo, documents }: any)
   );
 };
 
-const FinanceView = ({ data, onSave, suppliers }: any) => {
-  const [showModal, setShowModal] = useState(false);
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportFormat, setReportFormat] = useState('pdf');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [newEntry, setNewEntry] = useState({ description: '', category: '', value: '', type: 'expense', date: new Date().toISOString().split('T')[0], dueDate: '', supplier: '' });
-
-  const filteredData = useMemo(() => {
-    return data.filter((item: any) => {
-      if (startDate && new Date(item.date) < new Date(startDate)) return false;
-      if (endDate && new Date(item.date) > new Date(endDate)) return false;
-      return true;
-    });
-  }, [data, startDate, endDate]);
-
-  const handleSaveEntry = () => {
-    onSave({ ...newEntry, value: Number(newEntry.value), status: 'pending' });
-    setShowModal(false);
-    setNewEntry({ description: '', category: '', value: '', type: 'expense', date: new Date().toISOString().split('T')[0], dueDate: '', supplier: '' });
-  };
-
-  const handleStatusChange = (id: number, newStatus: string) => {
-      const entry = data.find((i:any) => i.id === id);
-      if(entry) {
-          onSave({...entry, status: newStatus}, true); 
-      }
-  }
-
-  const generateReport = () => {
-      alert(`Gerando relatório em ${reportFormat.toUpperCase()}...`);
-      setShowReportModal(false);
-  }
-
-  // Calculate totals
-  const balance = data.reduce((acc: number, curr: any) => curr.status === 'paid' ? (curr.type === 'income' ? acc + curr.value : acc - curr.value) : acc, 0);
-  const pendingIncome = data.filter((i:any) => i.type === 'income' && i.status === 'pending').reduce((acc:number, c:any) => acc + c.value, 0);
-  const pendingExpense = data.filter((i:any) => i.type === 'expense' && i.status === 'pending').reduce((acc:number, c:any) => acc + c.value, 0);
-  const projectedBalance = balance + pendingIncome - pendingExpense;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-slate-800">Financeiro</h2>
-        <div className="flex gap-2">
-            <button onClick={() => setShowReportModal(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2"><FileText size={18} /> Relatórios</button>
-            <button onClick={() => setShowModal(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Novo Lançamento</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-xl border-b-4 border-emerald-500 shadow-sm">
-              <p className="text-xs font-bold text-slate-500 uppercase">Saldo em Caixa</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">R$ {balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
-          </div>
-          <div className="bg-white p-6 rounded-xl border-b-4 border-emerald-200 shadow-sm">
-              <p className="text-xs font-bold text-slate-500 uppercase">A Receber (Previsão)</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1">R$ {pendingIncome.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
-          </div>
-          <div className="bg-white p-6 rounded-xl border-b-4 border-rose-200 shadow-sm">
-              <p className="text-xs font-bold text-slate-500 uppercase">A Pagar (Previsão)</p>
-              <h3 className="text-2xl font-bold text-rose-600 mt-1">R$ {pendingExpense.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
-          </div>
-          <div className="bg-indigo-50 p-6 rounded-xl border-b-4 border-indigo-500 shadow-sm md:col-span-3">
-              <p className="text-xs font-bold text-indigo-800 uppercase">Saldo Previsto Final</p>
-              <h3 className="text-3xl font-bold text-indigo-900 mt-1">R$ {projectedBalance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</h3>
-              <p className="text-xs text-indigo-600 mt-1">Saldo Caixa + Receber - Pagar</p>
-          </div>
-      </div>
-
-      <Card>
-        <div className="flex gap-4 mb-6 bg-slate-50 p-4 rounded-lg items-end">
-            <div className="flex-1">
-                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Período Início</label>
-                <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className={inputClass} />
-            </div>
-            <div className="flex-1">
-                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Período Fim</label>
-                <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className={inputClass} />
-            </div>
-            <button onClick={() => {setStartDate(''); setEndDate('')}} className="text-slate-500 hover:text-slate-800 text-sm mb-2">Limpar Filtros</button>
-        </div>
-
-        <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
-            <tr>
-                <th className="p-3">Descrição</th>
-                <th className="p-3">Categoria</th>
-                <th className="p-3">Data</th>
-                <th className="p-3">Vencimento</th>
-                <th className="p-3">Status</th>
-                <th className="p-3 text-right">Valor</th>
-                <th className="p-3 text-center">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredData.map((item: any) => (
-              <tr key={item.id} className="border-b hover:bg-slate-50">
-                <td className="p-3">
-                    <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-full ${item.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'}`}>
-                            <DollarSign size={14} />
-                        </div>
-                        <div>
-                            <p className="font-medium">{item.description}</p>
-                            {item.supplier && <p className="text-xs text-slate-500 flex items-center gap-1"><Truck size={10}/> {item.supplier}</p>}
-                        </div>
-                    </div>
-                </td>
-                <td className="p-3 text-slate-600">{item.category}</td>
-                <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
-                <td className="p-3 text-slate-600">{item.dueDate ? new Date(item.dueDate).toLocaleDateString('pt-BR') : '-'}</td>
-                <td className="p-3"><StatusBadge status={item.status} /></td>
-                <td className={`p-3 text-right font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {item.type === 'income' ? '+' : '-'} R$ {item.value.toFixed(2)}
-                </td>
-                <td className="p-3 text-center">
-                    <ActionMenu 
-                        onAction={(act) => handleStatusChange(item.id, act)}
-                        options={[
-                            { label: 'Marcar como Pago', value: 'paid', color: 'text-emerald-600' },
-                            { label: 'Marcar como Pendente', value: 'pending', color: 'text-amber-600' },
-                            { label: 'Marcar como Vencido', value: 'vencido', color: 'text-rose-600' }
-                        ]}
-                    />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Novo Lançamento">
-        <div className="space-y-4">
-          <div className="flex gap-4 p-1 bg-slate-100 rounded-lg">
-            <button className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${newEntry.type === 'income' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`} onClick={() => setNewEntry({...newEntry, type: 'income'})}>Receita</button>
-            <button className={`flex-1 py-2 rounded-md text-sm font-medium transition-all ${newEntry.type === 'expense' ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`} onClick={() => setNewEntry({...newEntry, type: 'expense'})}>Despesa</button>
-          </div>
-          <input className={inputClass} placeholder="Descrição" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} />
-          <div className="grid grid-cols-2 gap-4">
-            <select className={inputClass} value={newEntry.category} onChange={e => setNewEntry({...newEntry, category: e.target.value})}>
-                <option value="">Categoria</option>
-                <option value="Aluguel">Aluguel</option>
-                <option value="Manutenção">Manutenção</option>
-                <option value="Serviços">Serviços</option>
-                <option value="Utilidades">Utilidades</option>
-                <option value="Taxas">Taxas</option>
-            </select>
-            <input type="date" className={inputClass} value={newEntry.dueDate} onChange={e => setNewEntry({...newEntry, dueDate: e.target.value})} title="Data Vencimento" />
-          </div>
-          {newEntry.type === 'expense' && (
-              <select className={inputClass} value={newEntry.supplier} onChange={e => setNewEntry({...newEntry, supplier: e.target.value})}>
-                  <option value="">Selecionar Fornecedor</option>
-                  {suppliers && suppliers.map((s:any) => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
-                  ))}
-              </select>
-          )}
-          <input type="number" className={inputClass} placeholder="Valor (R$)" value={newEntry.value} onChange={e => setNewEntry({...newEntry, value: e.target.value})} />
-          <button onClick={handleSaveEntry} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
-        </div>
-      </Modal>
-
-      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Exportar Relatórios">
-          <div className="space-y-6">
-              <div>
-                  <label className="text-sm font-bold text-slate-700 block mb-2">Período</label>
-                  <div className="flex gap-2">
-                      <input type="date" className={inputClass} />
-                      <input type="date" className={inputClass} />
-                  </div>
-              </div>
-              <div>
-                  <label className="text-sm font-bold text-slate-700 block mb-2">Tipo de Relatório</label>
-                  <select className={inputClass}>
-                      <option>Fluxo de Caixa Detalhado</option>
-                      <option>Inadimplência por Unidade</option>
-                      <option>Despesas por Categoria</option>
-                  </select>
-              </div>
-              <div>
-                  <label className="text-sm font-bold text-slate-700 block mb-2">Formato</label>
-                  <div className="grid grid-cols-3 gap-3">
-                      <button onClick={() => setReportFormat('pdf')} className={`flex flex-col items-center p-3 rounded-xl border ${reportFormat === 'pdf' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:bg-slate-50'}`}>
-                          <FileText size={24} className="mb-2"/> <span className="text-xs font-bold">PDF</span>
-                      </button>
-                      <button onClick={() => setReportFormat('excel')} className={`flex flex-col items-center p-3 rounded-xl border ${reportFormat === 'excel' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:bg-slate-50'}`}>
-                          <FileText size={24} className="mb-2"/> <span className="text-xs font-bold">Excel</span>
-                      </button>
-                      <button onClick={() => setReportFormat('csv')} className={`flex flex-col items-center p-3 rounded-xl border ${reportFormat === 'csv' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-200 hover:bg-slate-50'}`}>
-                          <Download size={24} className="mb-2"/> <span className="text-xs font-bold">CSV</span>
-                      </button>
-                  </div>
-              </div>
-              <button onClick={generateReport} className="w-full bg-indigo-600 text-white py-3 rounded-xl hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200">Gerar Relatório</button>
-          </div>
-      </Modal>
-    </div>
-  );
-};
-
 const UnitsView = ({ data, onSave, residents }: any) => {
   const [editing, setEditing] = useState<any>(null);
+  const [errors, setErrors] = useState<any>({});
 
   const handleEdit = (unit: any) => {
-      setEditing({...unit});
+      // Clone object to avoid reference issues
+      setEditing(JSON.parse(JSON.stringify(unit)));
+      setErrors({});
   }
 
   const handleSave = () => {
+      if(!editing.number || !editing.block) {
+          setErrors({ number: !editing.number ? "Obrigatório" : "", block: !editing.block ? "Obrigatório" : "" });
+          return;
+      }
       onSave(editing);
       setEditing(null);
   }
@@ -610,30 +673,40 @@ const UnitsView = ({ data, onSave, residents }: any) => {
     <div className="space-y-6">
       <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Unidades</h2><button onClick={() => setEditing({ number: '', block: '', responsible: '', type: 'owner', status: 'paid', area: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Nova Unidade</button></div>
       <div className="overflow-x-auto">
-        <Card className="min-w-[800px]">
+        <div className="min-w-[800px]">
+          <Card>
             <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">Unidade</th><th className="p-3">Responsável</th><th className="p-3">Ocupação</th><th className="p-3">Situação Financeira</th><th className="p-3 text-right">Ações</th></tr></thead>
-            <tbody>
+              <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">Unidade</th><th className="p-3">Responsável</th><th className="p-3">Ocupação</th><th className="p-3">Situação Financeira</th><th className="p-3 text-right">Ações</th></tr></thead>
+              <tbody>
                 {data.map((u: any) => (
-                <tr key={u.id} className="border-b hover:bg-slate-50">
+                  <tr key={u.id} className="border-b hover:bg-slate-50">
                     <td className="p-3 font-medium text-slate-900">{u.number} - Bloco {u.block}</td>
                     <td className="p-3 text-slate-900">{u.responsible}</td>
-                    <td className="p-3 text-slate-600">
+                    <td className="p-3 text-slate-900">
                         {u.type === 'owner' ? 'Proprietário' : u.type === 'tenant' ? 'Inquilino' : 'Vazia'}
                     </td>
                     <td className="p-3"><StatusBadge status={u.status === 'paid' ? 'adimplente' : 'inadimplente'} /></td>
                     <td className="p-3 text-right"><button onClick={() => handleEdit(u)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button></td>
-                </tr>
+                  </tr>
                 ))}
-            </tbody>
+              </tbody>
             </table>
-        </Card>
+          </Card>
+        </div>
       </div>
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Editar Unidade" : "Nova Unidade"}>
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Unidade</label><input className={inputClass} value={editing?.number || ''} onChange={e => setEditing({...editing, number: e.target.value})} placeholder="Ex: 101" /></div>
-            <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Bloco</label><input className={inputClass} value={editing?.block || ''} onChange={e => setEditing({...editing, block: e.target.value})} placeholder="Ex: A" /></div>
+            <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Unidade</label>
+                <input className={inputClass} value={editing?.number || ''} onChange={e => setEditing({...editing, number: e.target.value})} placeholder="Ex: 101" />
+                {errors.number && <ErrorMessage message={errors.number} />}
+            </div>
+            <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Bloco</label>
+                <input className={inputClass} value={editing?.block || ''} onChange={e => setEditing({...editing, block: e.target.value})} placeholder="Ex: A" />
+                {errors.block && <ErrorMessage message={errors.block} />}
+            </div>
           </div>
           <div>
               <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Responsável</label>
@@ -661,11 +734,13 @@ const UnitsView = ({ data, onSave, residents }: any) => {
             </div>
           </div>
           
-          {/* Conditional Tenant Field */}
           {editing?.type === 'tenant' && (
               <div>
                   <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nome do Inquilino</label>
-                  <input className={inputClass} placeholder="Nome completo do Inquilino" value={editing?.tenantName || ''} onChange={e => setEditing({...editing, tenantName: e.target.value})} />
+                  <select className={inputClass} value={editing?.tenantName || ''} onChange={e => setEditing({...editing, tenantName: e.target.value})}>
+                      <option value="">Selecionar Inquilino</option>
+                      {residentsOptions.map((name:string, idx:number) => <option key={idx} value={name}>{name}</option>)}
+                  </select>
               </div>
           )}
 
@@ -679,11 +754,311 @@ const UnitsView = ({ data, onSave, residents }: any) => {
   );
 };
 
+const ResidentsView = ({ data, onSave, onDelete }: any) => {
+    const [editing, setEditing] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [errors, setErrors] = useState<any>({});
+
+    const filteredData = data.filter((r: any) => 
+        r.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        r.unit.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const handleSave = () => {
+        const err: any = {};
+        if (!editing.name) err.name = "Nome obrigatório";
+        if (!editing.unit) err.unit = "Unidade obrigatória";
+        if (editing.email && !validateEmail(editing.email)) err.email = "Email inválido";
+        
+        if (Object.keys(err).length > 0) {
+            setErrors(err);
+            return;
+        }
+        
+        onSave(editing, !!editing.id);
+        setEditing(null);
+        setErrors({});
+    };
+
+    const handleDelete = (id: number) => {
+        if(confirm('Tem certeza que deseja remover este morador?')) {
+            onDelete(id);
+        }
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-800">Moradores</h2>
+                <button onClick={() => { setEditing({ name: '', unit: '', phone: '', email: '', occupants: 1, cpf: '' }); setErrors({}); }} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700">
+                    <Plus size={18} /> Novo Morador
+                </button>
+            </div>
+
+            <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <input className={`${inputClass} pl-10`} placeholder="Buscar por nome ou unidade..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+            </div>
+
+            <Card>
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+                        <tr><th className="p-3">Nome</th><th className="p-3">CPF</th><th className="p-3">Unidade</th><th className="p-3">Contato</th><th className="p-3">Ocupantes</th><th className="p-3 text-right">Ações</th></tr>
+                    </thead>
+                    <tbody>
+                        {filteredData.map((r: any) => (
+                            <tr key={r.id} className="border-b hover:bg-slate-50">
+                                <td className="p-3 font-medium text-slate-900">{r.name}</td>
+                                <td className="p-3 text-slate-900">{r.cpf || '-'}</td>
+                                <td className="p-3 text-slate-900">{r.unit}</td>
+                                <td className="p-3 text-slate-900">
+                                    <div>{r.phone}</div>
+                                    <div className="text-xs text-slate-400">{r.email}</div>
+                                </td>
+                                <td className="p-3 text-slate-900">{r.occupants}</td>
+                                <td className="p-3 text-right space-x-2">
+                                    <button type="button" onClick={() => { setEditing(r); setErrors({}); }} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
+                                    <button type="button" onClick={() => handleDelete(r.id)} className="text-rose-600 hover:text-rose-800 font-medium">Excluir</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Card>
+
+            <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Editar Morador" : "Novo Morador"}>
+                <div className="space-y-4">
+                    <div>
+                        <input className={inputClass} placeholder="Nome Completo" value={editing?.name || ''} onChange={e => setEditing({...editing, name: e.target.value})} />
+                        {errors.name && <ErrorMessage message={errors.name} />}
+                    </div>
+                    <input className={inputClass} placeholder="CPF" value={editing?.cpf || ''} onChange={e => setEditing({...editing, cpf: e.target.value})} />
+                    <div>
+                        <input className={inputClass} placeholder="Unidade (ex: 101 - A)" value={editing?.unit || ''} onChange={e => setEditing({...editing, unit: e.target.value})} />
+                        {errors.unit && <ErrorMessage message={errors.unit} />}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <input className={inputClass} placeholder="Telefone" value={editing?.phone || ''} onChange={e => setEditing({...editing, phone: e.target.value})} />
+                        <div>
+                            <input className={inputClass} placeholder="Email" value={editing?.email || ''} onChange={e => setEditing({...editing, email: e.target.value})} />
+                            {errors.email && <ErrorMessage message={errors.email} />}
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Número de Ocupantes</label>
+                        <input type="number" className={inputClass} value={editing?.occupants || 1} onChange={e => setEditing({...editing, occupants: parseInt(e.target.value)})} min={1} />
+                    </div>
+                    <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
+                </div>
+            </Modal>
+        </div>
+    );
+};
+
+const MaintenanceView = ({ data, onSave, suppliers }: any) => {
+    const [editing, setEditing] = useState<any>(null);
+    const [filter, setFilter] = useState('all');
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [reportFilters, setReportFilters] = useState({ start: '', end: '', type: '' });
+
+    const filteredData = data.filter((m:any) => {
+        if (filter === 'pending') return m.status === 'pending' || m.status === 'scheduled';
+        return true;
+    });
+
+    const handleAction = (id: number, action: string) => {
+        const item = data.find((i:any) => i.id === id);
+        if(!item) return;
+        
+        let newStatus = item.status;
+        if(action === 'complete') newStatus = 'completed';
+        if(action === 'cancel') newStatus = 'cancelled';
+        if(action === 'schedule') newStatus = 'scheduled';
+        if(action === 'pending') newStatus = 'pending';
+        if(action === 'in_progress') newStatus = 'in_progress';
+        
+        if(action === 'edit') {
+            setEditing(item);
+        } else {
+            onSave({...item, status: newStatus}, true);
+        }
+    }
+
+    const handleSaveEdit = () => {
+        onSave(editing, !!editing.id); // true if editing existing
+        setEditing(null);
+    }
+
+    // Calculate validity date based on recurrence
+    const handleRecurrenceChange = (months: number) => {
+        if (!editing.date) return;
+        const date = new Date(editing.date);
+        date.setMonth(date.getMonth() + months);
+        setEditing({...editing, recurrence: months, validUntil: date.toISOString().split('T')[0]});
+    }
+
+    const handleGenerateReport = () => {
+        const { start, end, type } = reportFilters;
+        let reportData = data.filter((m:any) => {
+            if (start && new Date(m.date) < new Date(start)) return false;
+            if (end && new Date(m.date) > new Date(end)) return false;
+            if (type && type !== 'Todas' && m.type !== type) return false;
+            return true;
+        });
+
+        const reportContent = `RELATÓRIO DE MANUTENÇÃO\nPeríodo: ${start || 'Início'} a ${end || 'Fim'}\nTipo: ${type || 'Todos'}\n\n` +
+            reportData.map((m:any) => `${m.date} - ${m.item} (${m.type}) - Status: ${m.status} - Fornecedor: ${m.supplier || 'N/A'}`).join('\n');
+
+        const blob = new Blob([reportContent], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `relatorio_manutencao_${new Date().toISOString().split('T')[0]}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        setShowReportModal(false);
+    }
+
+    return (
+        <div className="space-y-6">
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-800">Plano de Manutenção</h2>
+                <div className="flex gap-2">
+                    <button onClick={() => setShowReportModal(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2"><FileText size={18} /> Relatório</button>
+                    <button onClick={() => setEditing({ item: '', date: new Date().toISOString().split('T')[0], type: 'Preventiva', status: 'scheduled', supplier: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700">
+                        <Plus size={18} /> Nova O.S.
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-white p-2 rounded-xl border border-slate-200 inline-flex gap-2">
+                <button onClick={() => setFilter('all')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>Todas</button>
+                <button onClick={() => setFilter('pending')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'pending' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>Pendentes</button>
+            </div>
+
+            <Card>
+                <table className="w-full text-sm text-left">
+                    <thead className="bg-slate-50 text-slate-500 uppercase text-xs">
+                        <tr><th className="p-3">Item / Serviço</th><th className="p-3">Data</th><th className="p-3">Tipo</th><th className="p-3">Fornecedor</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr>
+                    </thead>
+                    <tbody>
+                        {filteredData.map((item: any) => (
+                            <tr key={item.id} className="border-b hover:bg-slate-50">
+                                <td className="p-3 font-medium text-slate-900">{item.item}</td>
+                                <td className="p-3 text-slate-600">{new Date(item.date).toLocaleDateString('pt-BR')}</td>
+                                <td className="p-3 text-slate-600">{item.type}</td>
+                                <td className="p-3 text-slate-600">{item.supplier}</td>
+                                <td className="p-3"><StatusBadge status={item.status} /></td>
+                                <td className="p-3 text-right">
+                                    <ActionMenu 
+                                        onAction={(act) => handleAction(item.id, act)}
+                                        options={[
+                                            { label: 'Editar', value: 'edit' },
+                                            { label: 'Agendar', value: 'schedule', color: 'text-blue-600' },
+                                            { label: 'Iniciar Execução', value: 'in_progress', color: 'text-indigo-600' },
+                                            { label: 'Concluir', value: 'complete', color: 'text-emerald-600' },
+                                            { label: 'Voltar para Pendente', value: 'pending', color: 'text-amber-600' },
+                                            { label: 'Cancelar', value: 'cancel', color: 'text-rose-600' }
+                                        ]}
+                                    />
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Card>
+
+            <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Editar Manutenção" : "Nova Ordem de Serviço"}>
+                <div className="space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Item / Descrição</label>
+                        <input className={inputClass} value={editing?.item || ''} onChange={e => setEditing({...editing, item: e.target.value})} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Data Execução</label>
+                            <input type="date" className={inputClass} value={editing?.date || ''} onChange={e => setEditing({...editing, date: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Tipo</label>
+                            <select className={inputClass} value={editing?.type || 'Preventiva'} onChange={e => setEditing({...editing, type: e.target.value})}>
+                                <option value="Preventiva">Preventiva</option>
+                                <option value="Corretiva">Corretiva</option>
+                                <option value="Rotina">Rotina</option>
+                            </select>
+                        </div>
+                    </div>
+                    {editing?.type === 'Preventiva' && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Recorrência (Meses)</label>
+                                <input type="number" className={inputClass} placeholder="Ex: 12" onChange={e => handleRecurrenceChange(parseInt(e.target.value))} />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Validade Legal</label>
+                                <input type="date" className={inputClass} value={editing?.validUntil || ''} readOnly />
+                            </div>
+                        </div>
+                    )}
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fornecedor</label>
+                        <select className={inputClass} value={editing?.supplier || ''} onChange={e => setEditing({...editing, supplier: e.target.value})}>
+                            <option value="">Selecione...</option>
+                            <option value="Zelador">Zelador (Interno)</option>
+                            {suppliers?.map((s:any) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Status</label>
+                        <select className={inputClass} value={editing?.status || 'scheduled'} onChange={e => setEditing({...editing, status: e.target.value})}>
+                            <option value="scheduled">Agendado</option>
+                            <option value="pending">Pendente</option>
+                            <option value="in_progress">Em Execução</option>
+                            <option value="completed">Concluído</option>
+                            <option value="cancelled">Cancelado</option>
+                        </select>
+                    </div>
+                    <button onClick={handleSaveEdit} className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 font-medium">Salvar</button>
+                </div>
+            </Modal>
+
+            <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Relatório de Manutenção">
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Início</label>
+                            <input type="date" className={inputClass} value={reportFilters.start} onChange={e => setReportFilters({...reportFilters, start: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fim</label>
+                            <input type="date" className={inputClass} value={reportFilters.end} onChange={e => setReportFilters({...reportFilters, end: e.target.value})} />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Tipo de Manutenção</label>
+                        <select className={inputClass} value={reportFilters.type} onChange={e => setReportFilters({...reportFilters, type: e.target.value})}>
+                            <option value="">Todas</option>
+                            <option value="Preventiva">Preventiva</option>
+                            <option value="Corretiva">Corretiva</option>
+                            <option value="Rotina">Rotina</option>
+                        </select>
+                    </div>
+                    <button onClick={handleGenerateReport} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2">
+                        <FileText size={18} /> Gerar PDF
+                    </button>
+                </div>
+            </Modal>
+        </div>
+    );
+};
+
 export const SuppliersView = ({ data, onSave }: any) => {
     const [editing, setEditing] = useState<any>(null);
     const [filter, setFilter] = useState('all');
     const [search, setSearch] = useState('');
-
+    
     const filtered = data.filter((s:any) => {
         const matchesFilter = filter === 'all' ? true : (filter === 'active' ? s.status === 'active' : s.status === 'inactive');
         const matchesSearch = s.name.toLowerCase().includes(search.toLowerCase());
@@ -710,288 +1085,37 @@ export const SuppliersView = ({ data, onSave }: any) => {
         <div className="space-y-6">
             <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Fornecedores</h2><button onClick={()=>setEditing({})} className="bg-indigo-600 text-white px-4 py-2 rounded flex gap-2 hover:bg-indigo-700 transition-colors"><Plus size={18}/> Novo</button></div>
             
-            <div className="flex flex-col gap-4">
-                <div className="relative">
-                    <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
-                    <input 
-                        className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900" 
-                        placeholder="Buscar fornecedor por nome..." 
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <div className="flex gap-2">
-                    <button onClick={()=>setFilter('all')} className={`px-3 py-1 rounded transition-colors ${filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 hover:bg-slate-200'}`}>Todos</button>
-                    <button onClick={()=>setFilter('active')} className={`px-3 py-1 rounded transition-colors ${filter === 'active' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500 ring-opacity-50' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}`}>Ativos</button>
-                    <button onClick={()=>setFilter('inactive')} className={`px-3 py-1 rounded transition-colors ${filter === 'inactive' ? 'bg-rose-100 text-rose-700 ring-2 ring-rose-500 ring-opacity-50' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'}`}>Inativos</button>
-                </div>
+            <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                <input className={`${inputClass} pl-10`} placeholder="Buscar fornecedor por nome..." value={search} onChange={e => setSearch(e.target.value)} />
             </div>
 
-            <Card><table className="w-full text-sm text-left"><thead className="bg-slate-50 uppercase text-xs"><tr><th className="p-3">Nome</th><th className="p-3">Categoria</th><th className="p-3">Contato</th><th className="p-3">Vencimento</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr></thead><tbody>{filtered.map((s:any)=><tr key={s.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-3 text-slate-900 font-bold">{s.name}</td><td className="p-3 text-slate-600">{s.category}</td><td className="p-3 text-slate-600">{s.contact}</td><td className="p-3 text-slate-600">{s.contractEnd ? new Date(s.contractEnd).toLocaleDateString('pt-BR') : '-'}</td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3 text-right space-x-3"><button type="button" onClick={() => toggleStatus(s)} className={`text-xs font-bold uppercase tracking-wider ${s.status === 'active' ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'}`}>{s.status === 'active' ? 'Desativar' : 'Ativar'}</button><button onClick={() => handleDownloadContract(s.name)} className="text-indigo-600 text-xs font-bold uppercase tracking-wider hover:text-indigo-800">CONTRATO</button><button onClick={()=>setEditing(s)} className="text-slate-400 hover:text-indigo-600">Editar</button></td></tr>)}</tbody></table></Card>
-            <Modal isOpen={!!editing} onClose={()=>setEditing(null)} title="Fornecedor"><div className="space-y-4"><input className={inputClass} placeholder="Nome" value={editing?.name||''} onChange={e=>setEditing({...editing, name:e.target.value})}/><input className={inputClass} placeholder="Categoria" value={editing?.category||''} onChange={e=>setEditing({...editing, category:e.target.value})}/><input className={inputClass} placeholder="Contato" value={editing?.contact||''} onChange={e=>setEditing({...editing, contact:e.target.value})}/><div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Início</label><input type="date" className={inputClass} value={editing?.contractStart || ''} onChange={e => setEditing({...editing, contractStart: e.target.value})} /></div><div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fim (Vencimento)</label><input type="date" className={inputClass} value={editing?.contractEnd || ''} onChange={e => setEditing({...editing, contractEnd: e.target.value})} /></div></div><select className={inputClass} value={editing?.status||'active'} onChange={e=>setEditing({...editing, status:e.target.value})}><option value="active">Ativo</option><option value="inactive">Inativo</option></select><button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition-colors">Salvar</button></div></Modal>
+            <div className="flex gap-2"><button onClick={()=>setFilter('all')} className={`px-3 py-1 rounded transition-colors ${filter === 'all' ? 'bg-slate-800 text-white' : 'bg-slate-100 hover:bg-slate-200'}`}>Todos</button><button onClick={()=>setFilter('active')} className={`px-3 py-1 rounded transition-colors ${filter === 'active' ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-500 ring-opacity-50' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}`}>Ativos</button><button onClick={()=>setFilter('inactive')} className={`px-3 py-1 rounded transition-colors ${filter === 'inactive' ? 'bg-rose-100 text-rose-700 ring-2 ring-rose-500 ring-opacity-50' : 'bg-rose-100 text-rose-700 hover:bg-rose-200'}`}>Inativos</button></div>
+            <Card><table className="w-full text-sm text-left"><thead className="bg-slate-50 uppercase text-xs"><tr><th className="p-3">Nome</th><th className="p-3">Categoria</th><th className="p-3">Contato</th><th className="p-3">Vencimento</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr></thead><tbody>{filtered.map((s:any)=><tr key={s.id} className="border-b last:border-0 hover:bg-slate-50"><td className="p-3 text-slate-900 font-bold">{s.name}</td><td className="p-3">{s.category}</td><td className="p-3">{s.contact}</td><td className="p-3 text-slate-600">{s.contractEnd ? new Date(s.contractEnd).toLocaleDateString('pt-BR') : '-'}</td><td className="p-3"><StatusBadge status={s.status}/></td><td className="p-3 text-right space-x-3"><button type="button" onClick={() => toggleStatus(s)} className={`text-xs font-bold uppercase tracking-wider ${s.status === 'active' ? 'text-rose-600 hover:text-rose-800' : 'text-emerald-600 hover:text-emerald-800'}`}>{s.status === 'active' ? 'Desativar' : 'Ativar'}</button><button onClick={() => handleDownloadContract(s.name)} className="text-indigo-600 text-xs font-bold uppercase tracking-wider hover:text-indigo-800">CONTRATO</button><button onClick={()=>setEditing(s)} className="text-slate-400 hover:text-indigo-600">Editar</button></td></tr>)}</tbody></table></Card>
+            <Modal isOpen={!!editing} onClose={()=>setEditing(null)} title="Fornecedor">
+                <div className="space-y-4">
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Razão Social / Nome</label><input className={inputClass} placeholder="Nome" value={editing?.name||''} onChange={e=>setEditing({...editing, name:e.target.value})}/></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">CPF / CNPJ</label><input className={inputClass} placeholder="00.000.000/0000-00" value={editing?.cpfCnpj||''} onChange={e=>setEditing({...editing, cpfCnpj:e.target.value})}/></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Endereço</label><input className={inputClass} placeholder="Endereço completo" value={editing?.address||''} onChange={e=>setEditing({...editing, address:e.target.value})}/></div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Categoria</label><input className={inputClass} placeholder="Categoria" value={editing?.category||''} onChange={e=>setEditing({...editing, category:e.target.value})}/></div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Contato</label><input className={inputClass} placeholder="Contato" value={editing?.contact||''} onChange={e=>setEditing({...editing, contact:e.target.value})}/></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Início</label><input type="date" className={inputClass} value={editing?.contractStart || ''} onChange={e => setEditing({...editing, contractStart: e.target.value})} /></div>
+                        <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fim (Vencimento)</label><input type="date" className={inputClass} value={editing?.contractEnd || ''} onChange={e => setEditing({...editing, contractEnd: e.target.value})} /></div>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Observações</label>
+                        <textarea className={inputClass} rows={3} placeholder="Observações adicionais..." value={editing?.observations || ''} onChange={e => setEditing({...editing, observations: e.target.value})} />
+                    </div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Status</label><select className={inputClass} value={editing?.status||'active'} onChange={e=>setEditing({...editing, status:e.target.value})}><option value="active">Ativo</option><option value="inactive">Inativo</option></select></div>
+                    <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-2 rounded hover:bg-indigo-700 transition-colors">Salvar</button>
+                </div>
+            </Modal>
         </div>
     );
-};
-
-const ResidentsView = ({ data, onSave, onDelete }: any) => {
-  const [editing, setEditing] = useState<any>(null);
-
-  const handleSave = () => {
-      // Check if it's a new resident (no id) or updating existing
-      if(editing.id && data.find((r:any) => r.id === editing.id)){
-          onSave(editing, true); // update
-      } else {
-          // New resident
-          const newId = Math.max(...data.map((r:any) => r.id), 0) + 1;
-          onSave({...editing, id: newId}, false); // create
-      }
-      setEditing(null);
-  };
-
-  const handleDelete = (id: number) => {
-      if(window.confirm('Tem certeza que deseja excluir este morador?')){
-          onDelete(id);
-      }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Moradores</h2><button onClick={() => setEditing({ name: '', unit: '', phone: '', email: '', occupants: 1 })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Novo Morador</button></div>
-      <Card>
-        <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">Nome</th><th className="p-3">Unidade</th><th className="p-3">Contato</th><th className="p-3">Ocupantes</th><th className="p-3 text-right">Ações</th></tr></thead>
-          <tbody>
-            {data.map((r: any) => (
-              <tr key={r.id} className="border-b hover:bg-slate-50">
-                <td className="p-3 font-medium text-slate-900">{r.name}</td>
-                <td className="p-3 text-slate-600">{r.unit}</td>
-                <td className="p-3 text-slate-600">
-                    <div>{r.email}</div>
-                    <div className="text-xs text-slate-400">{r.phone}</div>
-                </td>
-                <td className="p-3 text-slate-600">{r.occupants}</td>
-                <td className="p-3 text-right space-x-2">
-                    <button onClick={() => setEditing(r)} className="text-indigo-600 hover:text-indigo-800 font-medium">Editar</button>
-                    <button type="button" onClick={() => handleDelete(r.id)} className="text-rose-600 hover:text-rose-800 font-medium">Excluir</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-      <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Editar Morador" : "Novo Morador"}>
-          <div className="space-y-4">
-              <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nome Completo</label><input className={inputClass} value={editing?.name || ''} onChange={e => setEditing({...editing, name: e.target.value})} /></div>
-              <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Email</label><input className={inputClass} value={editing?.email || ''} onChange={e => setEditing({...editing, email: e.target.value})} /></div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Telefone</label><input className={inputClass} value={editing?.phone || ''} onChange={e => setEditing({...editing, phone: e.target.value})} /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                  <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Unidade</label><input className={inputClass} placeholder="Ex: 101 - A" value={editing?.unit || ''} onChange={e => setEditing({...editing, unit: e.target.value})} /></div>
-                  <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Nº Ocupantes</label><input type="number" className={inputClass} value={editing?.occupants || 1} onChange={e => setEditing({...editing, occupants: parseInt(e.target.value)})} /></div>
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                  <button onClick={() => setEditing(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-                  <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Salvar</button>
-              </div>
-          </div>
-      </Modal>
-    </div>
-  );
-};
-
-const MaintenanceView = ({ data, onSave, suppliers }: any) => {
-  const [editing, setEditing] = useState<any>(null);
-  const [filter, setFilter] = useState('all');
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [reportFilters, setReportFilters] = useState({ start: '', end: '', type: '' });
-
-  const filteredData = data.filter((m:any) => {
-      if (filter === 'pending') return m.status === 'pending' || m.status === 'scheduled';
-      return true;
-  });
-
-  const handleAction = (id: number, action: string) => {
-      const item = data.find((i:any) => i.id === id);
-      if(!item) return;
-      
-      let newStatus = item.status;
-      if(action === 'complete') newStatus = 'completed';
-      if(action === 'cancel') newStatus = 'cancelled';
-      if(action === 'schedule') newStatus = 'scheduled';
-      if(action === 'pending') newStatus = 'pending';
-      if(action === 'in_progress') newStatus = 'in_progress';
-      
-      if(action === 'edit') {
-          setEditing(item);
-      } else {
-          onSave({...item, status: newStatus}, true);
-      }
-  }
-
-  const handleSaveEdit = () => {
-      onSave(editing, !!editing.id); // true if editing existing
-      setEditing(null);
-  }
-
-  // Calculate validity date based on recurrence
-  const handleRecurrenceChange = (months: number) => {
-      if (!editing.date) return;
-      const date = new Date(editing.date);
-      date.setMonth(date.getMonth() + months);
-      setEditing({...editing, recurrence: months, validUntil: date.toISOString().split('T')[0]});
-  }
-
-  const handleGenerateReport = () => {
-      const { start, end, type } = reportFilters;
-      let reportData = data.filter((m:any) => {
-          if (start && new Date(m.date) < new Date(start)) return false;
-          if (end && new Date(m.date) > new Date(end)) return false;
-          if (type && type !== 'Todas' && m.type !== type) return false;
-          return true;
-      });
-
-      const reportContent = `RELATÓRIO DE MANUTENÇÃO\nPeríodo: ${start || 'Início'} a ${end || 'Fim'}\nTipo: ${type || 'Todos'}\n\n` +
-          reportData.map((m:any) => `${m.date} - ${m.item} (${m.type}) - Status: ${m.status} - Fornecedor: ${m.supplier || 'N/A'}`).join('\n');
-
-      const blob = new Blob([reportContent], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `relatorio_manutencao_${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      
-      setShowReportModal(false);
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Plano de Manutenção</h2>
-        <div className="flex gap-2">
-            <button onClick={() => setShowReportModal(true)} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg hover:bg-slate-50 flex items-center gap-2"><FileText size={18} /> Relatório</button>
-            <button onClick={() => setEditing({ item: '', date: '', validUntil: '', type: 'Preventiva', status: 'pending', supplier: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700"><Plus size={18} /> Nova O.S.</button>
-        </div>
-      </div>
-      
-      <div className="bg-white p-2 rounded-xl border border-slate-200 inline-flex gap-2">
-          <button onClick={() => setFilter('all')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'all' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>Todas</button>
-          <button onClick={() => setFilter('pending')} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'pending' ? 'bg-indigo-100 text-indigo-700' : 'text-slate-500 hover:bg-slate-50'}`}>Pendentes</button>
-      </div>
-
-      <Card>
-        <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">Item</th><th className="p-3">Data Programada</th><th className="p-3">Fornecedor</th><th className="p-3">Tipo</th><th className="p-3">Status</th><th className="p-3 text-right">Ações</th></tr></thead>
-          <tbody>
-            {filteredData.map((m: any) => (
-              <tr key={m.id} className="border-b hover:bg-slate-50">
-                <td className="p-3">
-                    <p className="font-medium text-slate-800">{m.item}</p>
-                </td>
-                <td className="p-3 text-slate-600">
-                    <div>{new Date(m.date).toLocaleDateString('pt-BR')}</div>
-                    {m.type === 'Preventiva' && m.validUntil && <div className="text-xs text-slate-400">Val: {new Date(m.validUntil).toLocaleDateString('pt-BR')}</div>}
-                </td>
-                <td className="p-3 text-slate-600">{m.supplier || '-'}</td>
-                <td className="p-3 text-slate-600">{m.type}</td>
-                <td className="p-3"><StatusBadge status={m.status} /></td>
-                <td className="p-3 text-right">
-                    <ActionMenu 
-                        onAction={(act) => handleAction(m.id, act)}
-                        options={[
-                            { label: 'Editar', value: 'edit' },
-                            { label: 'Agendar', value: 'schedule', color: 'text-blue-600' },
-                            { label: 'Iniciar Execução', value: 'in_progress', color: 'text-indigo-600' },
-                            { label: 'Concluir', value: 'complete', color: 'text-emerald-600' },
-                            { label: 'Voltar para Pendente', value: 'pending', color: 'text-amber-600' },
-                            { label: 'Cancelar', value: 'cancel', color: 'text-rose-600' }
-                        ]}
-                    />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Modal isOpen={!!editing} onClose={() => setEditing(null)} title={editing?.id ? "Editar Ordem de Serviço" : "Nova Ordem de Serviço"}>
-          <div className="space-y-4">
-              <input className={inputClass} placeholder="Descrição do Item / Serviço" value={editing?.item || ''} onChange={e => setEditing({...editing, item: e.target.value})} />
-              
-              <div className="grid grid-cols-2 gap-4">
-                  <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Tipo</label>
-                      <select className={inputClass} value={editing?.type} onChange={e => setEditing({...editing, type: e.target.value})}>
-                          <option value="Preventiva">Preventiva</option>
-                          <option value="Corretiva">Corretiva</option>
-                          <option value="Rotina">Rotina</option>
-                      </select>
-                  </div>
-                  <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fornecedor</label>
-                      <select className={inputClass} value={editing?.supplier || ''} onChange={e => setEditing({...editing, supplier: e.target.value})}>
-                          <option value="">Selecionar</option>
-                          {suppliers && suppliers.map((s:any) => <option key={s.id} value={s.name}>{s.name}</option>)}
-                      </select>
-                  </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                  <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Data Execução</label>
-                      <input type="date" className={inputClass} value={editing?.date || ''} onChange={e => setEditing({...editing, date: e.target.value})} />
-                  </div>
-                  {editing?.type === 'Preventiva' && (
-                      <div>
-                          <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Recorrência (Meses)</label>
-                          <input type="number" className={inputClass} placeholder="Ex: 12" onChange={e => handleRecurrenceChange(parseInt(e.target.value))} />
-                      </div>
-                  )}
-              </div>
-              
-              {editing?.type === 'Preventiva' && (
-                  <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Validade Legal (Calculada)</label>
-                      <input type="date" className={inputClass} value={editing?.validUntil || ''} readOnly />
-                  </div>
-              )}
-
-              <div className="flex justify-end gap-2 mt-4">
-                  <button onClick={() => setEditing(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-                  <button onClick={handleSaveEdit} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Salvar</button>
-              </div>
-          </div>
-      </Modal>
-
-      <Modal isOpen={showReportModal} onClose={() => setShowReportModal(false)} title="Relatório de Manutenção">
-          <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                  <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Início</label>
-                      <input type="date" className={inputClass} value={reportFilters.start} onChange={e => setReportFilters({...reportFilters, start: e.target.value})} />
-                  </div>
-                  <div>
-                      <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Fim</label>
-                      <input type="date" className={inputClass} value={reportFilters.end} onChange={e => setReportFilters({...reportFilters, end: e.target.value})} />
-                  </div>
-              </div>
-              <div>
-                  <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Tipo de Manutenção</label>
-                  <select className={inputClass} value={reportFilters.type} onChange={e => setReportFilters({...reportFilters, type: e.target.value})}>
-                      <option value="">Todas</option>
-                      <option value="Preventiva">Preventiva</option>
-                      <option value="Corretiva">Corretiva</option>
-                      <option value="Rotina">Rotina</option>
-                  </select>
-              </div>
-              <button onClick={handleGenerateReport} className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2">
-                  <FileText size={18} /> Gerar PDF
-              </button>
-          </div>
-      </Modal>
-    </div>
-  );
 };
 
 const InfractionsView = ({ data, onSave }: any) => {
@@ -1200,6 +1324,17 @@ const DocumentsView = ({ data, onSave, onDelete }: any) => {
       }
   };
 
+  const handlePrint = (doc: any) => {
+      const printWindow = window.open('', '_blank');
+      if(printWindow) {
+          const content = doc.file && doc.file.startsWith('data:image')
+              ? `<img src="${doc.file}" style="max-width:100%"/>`
+              : `<h1>${doc.title}</h1><p>Documento para impressão...</p>`;
+          printWindow.document.write(`<html><head><title>Imprimir ${doc.title}</title></head><body onload="window.print()">${content}</body></html>`);
+          printWindow.document.close();
+      }
+  };
+
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
@@ -1232,6 +1367,9 @@ const DocumentsView = ({ data, onSave, onDelete }: any) => {
                         <p>Validade: {doc.permanent ? 'Indeterminada' : new Date(doc.validUntil).toLocaleDateString('pt-BR')}</p>
                     </div>
                     <div className="flex gap-2 border-t pt-4">
+                        <button type="button" onClick={() => handlePrint(doc)} className="flex-1 flex items-center justify-center gap-2 text-sm text-slate-600 hover:text-indigo-600 font-medium">
+                            <Printer size={16} /> Imprimir
+                        </button>
                         <button type="button" onClick={() => setViewingDoc(doc)} className="flex-1 flex items-center justify-center gap-2 text-sm text-slate-600 hover:text-indigo-600 font-medium">
                             <Eye size={16} /> Visualizar
                         </button>
@@ -1269,13 +1407,18 @@ const DocumentsView = ({ data, onSave, onDelete }: any) => {
 
         {/* View Document Modal */}
         <Modal isOpen={!!viewingDoc} onClose={() => setViewingDoc(null)} title={viewingDoc?.title || ''} maxWidth="max-w-4xl">
-            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-lg min-h-[400px]">
+            <div className="flex flex-col items-center justify-center p-4 h-[70vh]">
                 {viewingDoc?.file ? (
                     viewingDoc.file.startsWith('data:image') ? 
-                        <img src={viewingDoc.file} alt="Doc" className="max-w-full max-h-[70vh] rounded shadow" /> :
-                        <object data={viewingDoc.file} type="application/pdf" className="w-full h-[70vh] rounded shadow border border-slate-200">
-                            <p>Seu navegador não pode exibir este PDF. <a href={viewingDoc.file} download>Clique aqui para baixar.</a></p>
-                        </object>
+                        <img src={viewingDoc.file} alt="Doc" className="max-w-full max-h-full rounded shadow" /> :
+                    viewingDoc.file.startsWith('data:application/pdf') ?
+                        <object data={viewingDoc.file} type="application/pdf" className="w-full h-full rounded border">
+                            <p>Seu navegador não pode exibir este PDF. <a href={viewingDoc.file} download>Clique aqui para baixar</a>.</p>
+                        </object> :
+                        <div className="text-center">
+                            <p className="mb-2">Formato não suportado para visualização direta.</p>
+                            <a href={viewingDoc.file} download className="text-indigo-600 underline">Baixar Arquivo</a>
+                        </div>
                 ) : (
                     <div className="text-center py-10">
                         <FileText size={48} className="mx-auto text-slate-300 mb-4" />
@@ -1371,13 +1514,13 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                     <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Razão Social</label><input className={inputClass} value={condoForm.name || ''} onChange={e => setCondoForm({...condoForm, name: e.target.value})} /></div>
                     <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">CNPJ</label><input className={inputClass} value={condoForm.cnpj || ''} onChange={e => setCondoForm({...condoForm, cnpj: e.target.value})} /></div>
                 </div>
-                <div className="mb-6">
-                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Endereço</label>
-                    <input className={inputClass} value={condoForm.address || ''} onChange={e => setCondoForm({...condoForm, address: e.target.value})} />
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Endereço</label><input className={inputClass} value={condoForm.address || ''} onChange={e => setCondoForm({...condoForm, address: e.target.value})} /></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Síndico Responsável</label><input className={inputClass} value={condoForm.syndic || ''} onChange={e => setCondoForm({...condoForm, syndic: e.target.value})} /></div>
                 </div>
-                <div className="mb-6">
-                    <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Síndico Responsável</label>
-                    <input className={inputClass} value={condoForm.syndic || ''} onChange={e => setCondoForm({...condoForm, syndic: e.target.value})} />
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Telefone Responsável</label><input className={inputClass} value={condoForm.phone || ''} onChange={e => setCondoForm({...condoForm, phone: e.target.value})} /></div>
+                    <div><label className="text-xs font-bold text-slate-500 uppercase block mb-1">Saldo Inicial (R$)</label><input type="number" className={inputClass} value={condoForm.initialBalance || ''} onChange={e => setCondoForm({...condoForm, initialBalance: parseFloat(e.target.value)})} /></div>
                 </div>
                 <div className="flex justify-end">
                     <button onClick={handleSaveCondo} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700">Salvar Alterações</button>
@@ -1399,10 +1542,10 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                                         {u.name}
                                     </td>
                                     <td className="p-3 text-slate-900">{u.email}</td>
-                                    <td className="p-3 text-slate-600">
+                                    <td className="p-3 text-slate-900">
                                         {u.permittedCondos ? u.permittedCondos.join(', ') : 'Nenhum'}
                                     </td>
-                                    <td className="p-3 text-slate-600">{u.role}</td>
+                                    <td className="p-3 text-slate-900">{u.role}</td>
                                     <td className="p-3"><StatusBadge status={u.status} /></td>
                                     <td className="p-3 text-right space-x-2">
                                         <button onClick={() => toggleUserStatus(u)} className={`text-xs font-bold px-2 py-1 rounded ${u.status === 'active' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -1426,7 +1569,7 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                     <label className="font-bold text-slate-700 block mb-2">Alertas de Vencimento</label>
                     <div className="flex items-center gap-2">
                         <span className="text-sm text-slate-500">Receber avisos </span>
-                        <input type="number" className="w-16 px-2 py-1 border rounded text-center bg-white text-slate-900" value={settingsForm.alertDays} onChange={e => setSettingsForm({...settingsForm, alertDays: parseInt(e.target.value)})} />
+                        <input type="number" className="w-16 px-2 py-1 border rounded text-center bg-white" value={settingsForm.alertDays} onChange={e => setSettingsForm({...settingsForm, alertDays: parseInt(e.target.value)})} />
                         <span className="text-sm text-slate-500"> dias antes do vencimento de documentos e contas.</span>
                     </div>
                 </div>
@@ -1450,11 +1593,11 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                         <div className="space-y-3">
                             <label className="flex items-center gap-2">
                                 <input type="checkbox" checked={settingsForm.events.infractions} onChange={e => setSettingsForm({...settingsForm, events: {...settingsForm.events, infractions: e.target.checked}})} className="rounded text-indigo-600 focus:ring-indigo-500"/>
-                                <span className="text-slate-700">Novas Infrações Registradas</span>
+                                <span className="text-slate-700">Novas Infrações Registradas / Pendentes</span>
                             </label>
                             <label className="flex items-center gap-2">
                                 <input type="checkbox" checked={settingsForm.events.maintenance} onChange={e => setSettingsForm({...settingsForm, events: {...settingsForm.events, maintenance: e.target.checked}})} className="rounded text-indigo-600 focus:ring-indigo-500"/>
-                                <span className="text-slate-700">Atualizações de Status de Manutenção</span>
+                                <span className="text-slate-700">Manutenção (Atrasada ou Hoje)</span>
                             </label>
                             <label className="flex items-center gap-2">
                                 <input type="checkbox" checked={settingsForm.events.finance} onChange={e => setSettingsForm({...settingsForm, events: {...settingsForm.events, finance: e.target.checked}})} className="rounded text-indigo-600 focus:ring-indigo-500"/>
@@ -1488,17 +1631,52 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
                     <p className="text-xs font-bold text-slate-500 uppercase mb-2">Permissões de Acesso (Condomínios)</p>
                     <div className="space-y-2 max-h-32 overflow-y-auto">
                         {condos.map((c:any) => (
-                            <label key={c.id} className="flex items-center gap-2 text-sm text-slate-700">
+                            <label key={c.id} className="flex items-center gap-2 text-sm">
                                 <input 
                                     type="checkbox" 
-                                    checked={editingUser?.permittedCondos?.includes(c.id) || false}
+                                    checked={editingUser?.permittedCondos?.includes(c.id)}
                                     onChange={() => togglePermission(c.id)}
-                                    className="rounded text-indigo-600 focus:ring-indigo-500"
                                 />
                                 {c.name} (ID {c.id})
                             </label>
                         ))}
                     </div>
+                </div>
+
+                <div className="border p-3 rounded-lg bg-slate-50">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                            <ShieldCheck size={16} className="text-indigo-600" />
+                            <span className="text-sm font-bold text-slate-700">Autenticação em Duas Etapas (MFA)</span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" className="sr-only peer" checked={editingUser?.mfaEnabled || false} onChange={e => setEditingUser({...editingUser, mfaEnabled: e.target.checked})} />
+                            <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                    {editingUser?.mfaEnabled && (
+                        <div className="mt-3 p-3 bg-white rounded border border-slate-200">
+                            <div className="flex gap-3">
+                                <div className="bg-slate-100 p-2 rounded flex items-center justify-center">
+                                    <Smartphone size={24} className="text-slate-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-xs font-bold text-slate-700 mb-1">Configuração do App Autenticador</p>
+                                    <p className="text-xs text-slate-500 mb-2">Escaneie o QR Code abaixo com seu aplicativo (Google Authenticator, Authy).</p>
+                                    <div className="flex gap-3 items-center">
+                                        <div className="w-16 h-16 bg-slate-900 rounded-sm" style={{backgroundImage: 'url(https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=OTPAUTH://totp/GestorCondo:user?secret=JBSWY3DPEHPK3PXP&issuer=GestorCondo)', backgroundSize: 'cover'}}></div>
+                                        <div className="space-y-1">
+                                            <p className="text-[10px] font-mono bg-slate-100 px-1 rounded text-slate-600">Códigos de Backup:</p>
+                                            <div className="grid grid-cols-2 gap-1">
+                                                <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded border border-slate-200">8921-3321</code>
+                                                <code className="text-[10px] bg-slate-100 px-1 py-0.5 rounded border border-slate-200">4432-1123</code>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex justify-end gap-2 mt-4">
@@ -1514,26 +1692,20 @@ const SettingsView = ({ users, onUpdateUsers, condos, currentCondoId, onUpdateCo
 const RegistrationView = ({ data, onUpdate }: any) => {
   const [editing, setEditing] = useState<any>(null);
   const [condoToDelete, setCondoToDelete] = useState<number | null>(null);
-
-  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value.replace(/\D/g, '');
-    if (value.length > 14) value = value.slice(0, 14);
-    
-    // Mask CNPJ
-    if (value.length > 12) {
-      value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2}).*/, '$1.$2.$3/$4-$5');
-    } else if (value.length > 8) {
-      value = value.replace(/^(\d{2})(\d{3})(\d{3})(\d{0,4}).*/, '$1.$2.$3/$4');
-    } else if (value.length > 5) {
-      value = value.replace(/^(\d{2})(\d{3})(\d{0,3}).*/, '$1.$2.$3');
-    } else if (value.length > 2) {
-      value = value.replace(/^(\d{2})(\d{0,3}).*/, '$1.$2');
-    }
-    
-    setEditing({...editing, cnpj: value});
-  };
+  const [searchCNPJ, setSearchCNPJ] = useState('');
 
   const handleSave = () => {
+    // Validate Required Fields
+    if (!editing.name || !editing.cnpj) {
+        alert("Nome e CNPJ são obrigatórios.");
+        return;
+    }
+    // Validate CNPJ Format
+    if (editing.cnpj.length < 18) {
+        alert("CNPJ incompleto.");
+        return;
+    }
+
     if (editing.id) onUpdate(data.map((c: any) => c.id === editing.id ? editing : c));
     else {
       const maxId = data.reduce((max: number, c: any) => Math.max(max, c.id), 0);
@@ -1549,21 +1721,52 @@ const RegistrationView = ({ data, onUpdate }: any) => {
     }
   };
 
+  // Mask Helpers
+  const handleCNPJChange = (value: string) => {
+      let v = value.replace(/\D/g, "");
+      v = v.replace(/^(\d{2})(\d)/, "$1.$2");
+      v = v.replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3");
+      v = v.replace(/\.(\d{3})(\d)/, ".$1/$2");
+      v = v.replace(/(\d{4})(\d)/, "$1-$2");
+      setEditing({...editing, cnpj: v.substring(0, 18)}); // Limit chars
+  }
+
+  const handlePhoneChange = (value: string) => {
+      let v = value.replace(/\D/g, "");
+      v = v.replace(/^(\d{2})(\d)/g, "($1) $2");
+      v = v.replace(/(\d)(\d{4})$/, "$1-$2");
+      setEditing({...editing, phone: v.substring(0, 15)});
+  }
+
+  const filteredData = data.filter((c:any) => c.cnpj.includes(searchCNPJ));
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center"><h2 className="text-2xl font-bold text-slate-800">Cadastros</h2></div>
       <div className="bg-white p-6 rounded-xl border border-slate-200">
-        <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-bold text-slate-700">Lista de Condomínios</h3><button onClick={() => setEditing({ name: '', cnpj: '', address: '', syndic: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700 transition-colors"><Plus size={18} /> Novo Condomínio</button></div>
+        <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-4 items-center">
+                <h3 className="text-lg font-bold text-slate-700">Lista de Condomínios</h3>
+                <input 
+                    className={`${inputClass} text-sm py-1`} 
+                    placeholder="Filtrar por CNPJ" 
+                    value={searchCNPJ} 
+                    onChange={e => setSearchCNPJ(e.target.value)} 
+                />
+            </div>
+            <button onClick={() => setEditing({ name: '', cnpj: '', address: '', syndic: '', phone: '' })} className="bg-indigo-600 text-white px-4 py-2 rounded-lg flex gap-2 items-center hover:bg-indigo-700 transition-colors"><Plus size={18} /> Novo Condomínio</button>
+        </div>
         <table className="w-full text-sm text-left">
-          <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">ID</th><th className="p-3">Nome</th><th className="p-3">CNPJ</th><th className="p-3">Endereço</th><th className="p-3">Síndico</th><th className="p-3 text-right">Ações</th></tr></thead>
+          <thead className="bg-slate-50 text-slate-500 uppercase text-xs"><tr><th className="p-3">ID</th><th className="p-3">Nome</th><th className="p-3">CNPJ</th><th className="p-3">Endereço</th><th className="p-3">Síndico</th><th className="p-3">Telefone</th><th className="p-3 text-right">Ações</th></tr></thead>
           <tbody>
-            {data.map((c: any) => (
+            {filteredData.map((c: any) => (
               <tr key={c.id} className="border-b hover:bg-slate-50 transition-colors">
                 <td className="p-3 text-slate-500">{c.id}</td>
-                <td className="p-3 font-medium flex items-center gap-2 text-slate-900"><Building size={16} className="text-indigo-500"/> {c.name}</td>
+                <td className="p-3 font-medium flex items-center gap-2"><Building size={16} className="text-indigo-500"/> {c.name}</td>
                 <td className="p-3 text-slate-600">{c.cnpj}</td>
                 <td className="p-3 text-slate-600">{c.address}</td>
                 <td className="p-3 text-slate-600">{c.syndic}</td>
+                <td className="p-3 text-slate-600">{c.phone || '-'}</td>
                 <td className="p-3 text-right space-x-2">
                   <button type="button" onClick={() => setEditing(c)} className="text-slate-400 hover:text-indigo-600 transition-colors"><Edit size={18} /></button>
                   <button type="button" onClick={() => setCondoToDelete(c.id)} className="text-slate-400 hover:text-rose-600 transition-colors"><Trash2 size={18} /></button>
@@ -1578,9 +1781,12 @@ const RegistrationView = ({ data, onUpdate }: any) => {
       <Modal isOpen={!!editing} onClose={() => setEditing(null)} title="Condomínio">
         <div className="space-y-4">
           <input className={inputClass} placeholder="Nome do Condomínio" value={editing?.name || ''} onChange={e => setEditing({...editing, name: e.target.value})} />
-          <input className={inputClass} placeholder="CNPJ" value={editing?.cnpj || ''} onChange={handleCnpjChange} maxLength={18} />
+          <input className={inputClass} placeholder="CNPJ (00.000.000/0000-00)" value={editing?.cnpj || ''} onChange={e => handleCNPJChange(e.target.value)} maxLength={18} />
           <input className={inputClass} placeholder="Endereço Completo" value={editing?.address || ''} onChange={e => setEditing({...editing, address: e.target.value})} />
-          <input className={inputClass} placeholder="Nome do Síndico" value={editing?.syndic || ''} onChange={e => setEditing({...editing, syndic: e.target.value})} />
+          <div className="grid grid-cols-2 gap-4">
+              <input className={inputClass} placeholder="Nome do Síndico" value={editing?.syndic || ''} onChange={e => setEditing({...editing, syndic: e.target.value})} />
+              <input className={inputClass} placeholder="Telefone" value={editing?.phone || ''} onChange={e => handlePhoneChange(e.target.value)} maxLength={15} />
+          </div>
           <div className="flex justify-end gap-2"><button onClick={() => setEditing(null)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">Cancelar</button><button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Salvar</button></div>
         </div>
       </Modal>
@@ -1665,7 +1871,10 @@ const Sidebar = ({ view, setView, currentCondo }: { view: ViewState, setView: (v
 
 const App = () => {
   const [view, setView] = useState<ViewState>('dashboard');
-  const [currentCondoId, setCurrentCondoId] = useState(1);
+  const [currentCondoId, setCurrentCondoId] = useState(() => {
+      const saved = localStorage.getItem('gestorcondo_currentCondoId');
+      return saved ? parseInt(saved) : 1;
+  });
   const [showCondoMenu, setShowCondoMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -1702,6 +1911,7 @@ const App = () => {
   useEffect(() => localStorage.setItem('gestorcondo_documents', JSON.stringify(documents)), [documents]);
   useEffect(() => localStorage.setItem('gestorcondo_users', JSON.stringify(users)), [users]);
   useEffect(() => localStorage.setItem('gestorcondo_settings', JSON.stringify(appSettings)), [appSettings]);
+  useEffect(() => localStorage.setItem('gestorcondo_currentCondoId', currentCondoId.toString()), [currentCondoId]);
 
   // Notifications Logic
   const notifications = useMemo(() => {
@@ -1731,11 +1941,11 @@ const App = () => {
       // Maintenance Alerts
       if (appSettings.events.maintenance) {
           const pendingMaint = maintenance.filter((m:any) => {
-              if (m.condoId !== currentCondoId || m.status === 'completed' || m.status === 'cancelled') return false;
-              const today = new Date().toISOString().split('T')[0];
-              return m.date <= today; // Overdue or today
+              if (m.condoId !== currentCondoId || (m.status !== 'pending' && m.status !== 'scheduled')) return false;
+              const diffDays = Math.ceil((new Date(m.date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+              return diffDays <= 0; // Today or past
           }).length;
-          if(pendingMaint > 0) alerts.push({ id: 3, text: `${pendingMaint} manutenção(ões) pendente(s) ou atrasada(s).`, type: 'info' });
+          if(pendingMaint > 0) alerts.push({ id: 3, text: `${pendingMaint} manutenção(ões) agendada(s) para hoje ou atrasada(s).`, type: 'info' });
       }
 
       // Infraction Alerts
@@ -1748,13 +1958,6 @@ const App = () => {
   }, [documents, finance, maintenance, infractions, currentCondoId, appSettings]);
 
   const currentCondoData = condos.find((c: any) => c.id === currentCondoId);
-
-  const resetDb = () => {
-      if(confirm('Tem certeza? Isso apagará todos os seus dados e restaurará os padrões.')){
-          localStorage.clear();
-          window.location.reload();
-      }
-  }
 
   // Filter data by current condo
   const condoProps = {
@@ -1860,7 +2063,7 @@ const App = () => {
                                     ) : (
                                         notifications.map((n:any) => (
                                             <div key={n.id} className="p-3 hover:bg-slate-50 border-b border-slate-50 flex gap-3">
-                                                <div className={`mt-1 ${n.type === 'alert' ? 'text-rose-500' : n.type === 'warning' ? 'text-amber-500' : 'text-indigo-500'}`}><AlertCircle size={16}/></div>
+                                                <div className="mt-1 text-rose-500"><AlertCircle size={16}/></div>
                                                 <p className="text-sm text-slate-600">{n.text}</p>
                                             </div>
                                         ))
@@ -1889,27 +2092,19 @@ const App = () => {
         {/* CONTENT AREA */}
         <main className="flex-1 overflow-y-auto bg-slate-50 p-8">
             <div className="max-w-7xl mx-auto pb-10">
-                {view === 'dashboard' && <DashboardView data={condoProps.finance} units={condoProps.units} maintenance={condoProps.maintenance} navigateTo={setView} documents={condoProps.documents} />}
+                {view === 'dashboard' && <DashboardView data={condoProps.finance} units={condoProps.units} maintenance={condoProps.maintenance} navigateTo={setView} documents={condoProps.documents} initialBalance={currentCondoData?.initialBalance} />}
                 {view === 'units' && <UnitsView data={condoProps.units} residents={condoProps.residents} onSave={createUpdateHandler(setUnits, units)} />}
                 {view === 'residents' && <ResidentsView data={condoProps.residents} onSave={createUpdateHandler(setResidents, residents)} onDelete={createDeleteHandler(setResidents, residents)} />}
                 {view === 'maintenance' && <MaintenanceView data={condoProps.maintenance} onSave={createUpdateHandler(setMaintenance, maintenance)} suppliers={condoProps.suppliers} />}
-                {view === 'finance' && <FinanceView data={condoProps.finance} onSave={createUpdateHandler(setFinance, finance)} suppliers={condoProps.suppliers} />}
+                {view === 'finance' && <FinanceView data={condoProps.finance} onSave={createUpdateHandler(setFinance, finance)} suppliers={condoProps.suppliers} initialBalance={currentCondoData?.initialBalance} />}
                 {view === 'suppliers' && <SuppliersView data={condoProps.suppliers} onSave={createUpdateHandler(setSuppliers, suppliers)} />}
                 {view === 'infractions' && <InfractionsView data={condoProps.infractions} onSave={createUpdateHandler(setInfractions, infractions)} />}
                 {view === 'documents' && <DocumentsView data={condoProps.documents} onSave={createUpdateHandler(setDocuments, documents)} onDelete={createDeleteHandler(setDocuments, documents)} />}
                 
-                {/* Global Settings & Registration are partially condo-agnostic but may use condo info */}
                 {view === 'settings' && <SettingsView users={users} onUpdateUsers={setUsers} condos={condos} currentCondoId={currentCondoId} onUpdateCondo={(updated:any) => setCondos(condos.map((c:any) => c.id === currentCondoId ? updated : c))} settings={appSettings} onUpdateSettings={setAppSettings} />}
                 {view === 'registration' && <RegistrationView data={condos} onUpdate={setCondos} />}
             </div>
         </main>
-
-        {/* DEBUG RESET */}
-        <div className="fixed bottom-4 left-4 z-50">
-            <button onClick={resetDb} className="text-xs text-rose-300 hover:text-rose-500 flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
-                <Database size={12} /> Resetar Banco de Dados
-            </button>
-        </div>
       </div>
     </div>
   );
